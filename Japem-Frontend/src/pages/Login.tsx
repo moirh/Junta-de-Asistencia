@@ -21,8 +21,8 @@ export const Login = () => {
       localStorage.setItem('token', response.data.access_token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
-      
-      navigate('/donativos'); // Ajustado para ir a donativos tras el login
+      // Redirigir a la página de inicio
+      navigate('/'); // Ajustado para ir a la página de inicio
       
     } catch (err) {
       console.error(err);
@@ -53,14 +53,14 @@ export const Login = () => {
       {/* 2. TARJETA BLANCA (SOLO FORMULARIO) */}
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
         <h2 className="text-2xl font-semibold text-center text-gray-700">
-          Bienvenido
+          Bienvenido(a)
         </h2>
         
         {error && (
           <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
             {error}
           </div>
-        )}
+        )} 
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>

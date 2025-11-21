@@ -65,7 +65,7 @@ export const Header: FC = () => {
               <div className="h-6 w-px bg-gray-300 mx-2"></div>
               <button 
                 onClick={handleLogout}
-                className="p-2 rounded-full bg-transparent hover:bg-red-100 text-red-600 transition flex items-center gap-2"
+                className="p-2 rounded-full bg-transparent hover:bg-red-100 text-black transition flex items-center gap-2"
                 title="Cerrar Sesión"
               >
                 <LogOut className="w-5 h-5 stroke-2" />
