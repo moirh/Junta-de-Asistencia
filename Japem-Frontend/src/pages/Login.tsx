@@ -26,7 +26,7 @@ export const Login = () => {
       // Configurar axios globalmente
       axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
 
-      // Ir a donativos
+      // Ir a home
       navigate('/');
       
     } catch (err) {
@@ -35,7 +35,7 @@ export const Login = () => {
     }
   };
 
-  return (
+  return ( 
     <div className="flex items-center justify-center min-h-[80vh]">
       <div className="w-full max-w-md p-8 space-y-6 bg-white rounded shadow-md">
         <h2 className="text-2xl font-bold text-center text-gray-900">Iniciar Sesión</h2>
