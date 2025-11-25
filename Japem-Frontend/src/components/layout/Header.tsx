@@ -42,7 +42,7 @@ export const Header: FC = () => {
         <div className="flex items-center space-x-2 ml-0">
           <img src="/Logo.png" alt="Logo" className="h-8 w-8 object-contain" />
           <h1 className="text-gray-700 font-medium text-sm tracking-wide">
-            Junta de Asistencia Privada
+            Junta de Asistencia Privada del Estado de México
           </h1>
         </div>
 
