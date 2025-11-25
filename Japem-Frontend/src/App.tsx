@@ -28,11 +28,11 @@ const Layout = () => {
       <div className={`${isLoginPage ? "" : "pt-20"} min-h-screen bg-gray-50`}>
         <Routes>
           {/* Rutas Públicas */}
-          <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
 
           {/* Rutas Privadas */}
           <Route element={<PrivateRoute />}>
+            <Route path="/" element={<Home />} />
             <Route path="/donativos" element={<Donativos />} />
             {/* Agrega aquí más rutas protegidas si es necesario */}
           </Route>
