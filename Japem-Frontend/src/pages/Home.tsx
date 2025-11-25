@@ -4,10 +4,17 @@ import { Slider } from "../components/ui/Slider";
 import { AgreementCard } from "../components/ui/AgreementCard";
 import { ReminderCard } from "../components/ui/ReminderCard";
 import { Calendar } from "../components/ui/Calendar";
-// Importamos las funciones para pedir datos al backend
-import { getAcuerdos, getRecordatorios, toggleRecordatorio } from "../services/dashboardService";
+import { Modal } from "../components/ui/Modal"; // <--- Importamos el Modal
+import { Plus } from "lucide-react"; // <--- Icono de más
 
-// Definimos los tipos de datos para TypeScript (opcional pero recomendado)
+import {
+  getAcuerdos,
+  getRecordatorios,
+  toggleRecordatorio,
+  createAcuerdo, // <--- Nuevas funciones
+  createRecordatorio, // <--- Nuevas funciones
+} from "../services/dashboardService";
+
 interface Agreement {
   id: number;
   title: string;
@@ -23,123 +30,244 @@ interface Reminder {
 }
 
 export default function Home() {
-  // Estados para guardar la información que viene de la Base de Datos
   const [acuerdos, setAcuerdos] = useState<Agreement[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // useEffect: Se ejecuta una sola vez al cargar la página
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Hacemos las dos peticiones en paralelo
-        const [acuerdosData, remindersData] = await Promise.all([
-          getAcuerdos(),
-          getRecordatorios()
-        ]);
-        
-        setAcuerdos(acuerdosData);
-        setReminders(remindersData);
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Estados para controlar el Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<"acuerdo" | "recordatorio" | null>(
+    null
+  );
 
-    fetchData();
-  }, []);
+  // Estados para los formularios (inputs)
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    date: new Date().toISOString().split("T")[0], // Fecha de hoy por defecto
+  });
 
-  // Función para marcar un recordatorio como completado/pendiente
-  const handleToggleReminder = async (id: number, currentStatus: boolean) => {
+  // Cargar datos iniciales
+  const fetchData = async () => {
+    setLoading(true);
     try {
-      const updatedReminder = await toggleRecordatorio(id, !currentStatus);
-      // Actualizamos el estado local para que se refleje el cambio visualmente
-      setReminders(prev => prev.map(r => r.id === id ? updatedReminder : r));
+      const [acuerdosData, remindersData] = await Promise.all([
+        getAcuerdos(),
+        getRecordatorios(),
+      ]);
+      setAcuerdos(acuerdosData);
+      setReminders(remindersData);
     } catch (error) {
-      console.error("Error actualizando recordatorio", error);
+      console.error("Error cargando datos:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Generamos la lista de fechas para resaltar en el Calendario
-  // Convertimos las fechas string 'YYYY-MM-DD' a objetos Date
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Abrir Modal
+  const openModal = (type: "acuerdo" | "recordatorio") => {
+    setModalType(type);
+    setFormData({
+      title: "",
+      description: "",
+      date: new Date().toISOString().split("T")[0],
+    }); // Reset form
+    setIsModalOpen(true);
+  };
+
+  // Manejar el envío del formulario (Guardar)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (modalType === "acuerdo") {
+        await createAcuerdo(formData);
+      } else {
+        // Recordatorio no necesita descripción, pero enviamos lo que hay
+        await createRecordatorio({
+          title: formData.title,
+          date: formData.date,
+        });
+      }
+
+      // Si todo sale bien: cerramos modal y recargamos datos
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      alert("Error al guardar. Revisa la consola.");
+      console.error(error);
+    }
+  };
+
+  const handleToggleReminder = async (id: number, currentStatus: boolean) => {
+    try {
+      const updated = await toggleRecordatorio(id, !currentStatus);
+      setReminders((prev) => prev.map((r) => (r.id === id ? updated : r)));
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   const fechasImportantes = [
-    ...acuerdos.map(a => new Date(a.date)),
-    ...reminders.map(r => new Date(r.date))
+    ...acuerdos.map((a) => new Date(a.date)),
+    ...reminders.map((r) => new Date(r.date)),
   ];
 
   return (
     <>
       <Header />
-
-      <div className="w-full overflow-x-hidden bg-gray-50 text-gray-900">
-        {/* Slider de ancho completo */}
+      <div className="w-full overflow-x-hidden bg-gray-50 text-gray-900 min-h-screen">
         <div className="w-full overflow-hidden">
           <Slider />
         </div>
 
-        {/* Contenedor principal tipo dashboard */}
         <div className="w-full px-4 md:px-6 lg:px-10 py-10">
           <div className="flex flex-wrap gap-6 items-stretch w-full">
-            
-            {/* Recuadro 1: Acuerdos */}
+            {/* --- SECCIÓN ACUERDOS --- */}
             <div className="flex-1 min-w-[350px] bg-white rounded-2xl shadow-md p-6 border border-gray-200 flex flex-col">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">Acuerdos</h2>
-                {/* Podrías agregar un botón aquí para "Nuevo Acuerdo" */}
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Acuerdos
+                </h2>
+                <button
+                  onClick={() => openModal("acuerdo")}
+                  className="p-2 bg-blue-600 text-black rounded-full hover:bg-blue-700 transition shadow-md"
+                  title="Nuevo Acuerdo"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
-              
-              <div className="space-y-4 flex-1">
+
+              <div className="space-y-4 flex-1 max-h-[500px] overflow-y-auto">
                 {loading ? (
-                  <p className="text-gray-500 text-center">Cargando acuerdos...</p>
-                ) : acuerdos.length > 0 ? (
-                  acuerdos.map((a) => (
-                    <AgreementCard 
-                      key={a.id} 
-                      agreement={a} 
-                    />
-                  ))
+                  <p>Cargando...</p>
                 ) : (
-                  <p className="text-gray-400 text-sm text-center mt-4">No hay acuerdos próximos.</p>
+                  acuerdos.map((a) => (
+                    <AgreementCard key={a.id} agreement={a} />
+                  ))
+                )}
+                {!loading && acuerdos.length === 0 && (
+                  <p className="text-gray-400 text-center">Sin acuerdos.</p>
                 )}
               </div>
             </div>
 
-            {/* Recuadro 2: Recordatorios & Calendario */}
+            {/* --- SECCIÓN RECORDATORIOS --- */}
             <div className="flex-1 min-w-[350px] bg-white rounded-2xl shadow-md p-6 border border-gray-200 flex flex-col">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">
-                Recordatorios & Calendario
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold text-gray-800">
+                  Recordatorios & Calendario
+                </h2>
+                <button
+                  onClick={() => openModal("recordatorio")}
+                  className="p-2 bg-yellow-500 text-black rounded-full hover:bg-yellow-600 transition shadow-md"
+                  title="Nuevo Recordatorio"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
               <div className="grid md:grid-cols-2 gap-4 flex-1">
-                
-                {/* Lista de Recordatorios */}
-                <div className="space-y-4">
+                <div className="space-y-4 max-h-[400px] overflow-y-auto">
                   {loading ? (
-                    <p className="text-gray-500 text-sm">Cargando...</p>
-                  ) : reminders.length > 0 ? (
+                    <p>Cargando...</p>
+                  ) : (
                     reminders.map((r) => (
-                      <ReminderCard 
-                        key={r.id} 
+                      <ReminderCard
+                        key={r.id}
                         reminder={r}
-                        // Asumiendo que tu ReminderCard puede recibir una función onClick
                         onToggle={() => handleToggleReminder(r.id, r.done)}
                       />
                     ))
-                  ) : (
-                    <p className="text-gray-400 text-sm">Sin recordatorios pendientes.</p>
+                  )}
+                  {!loading && reminders.length === 0 && (
+                    <p className="text-gray-400 text-center">
+                      Sin recordatorios.
+                    </p>
                   )}
                 </div>
 
-                {/* Calendario con fechas resaltadas */}
                 <div className="flex justify-center">
-                    <Calendar highlightedDates={fechasImportantes} />
+                  <Calendar highlightedDates={fechasImportantes} />
                 </div>
-
               </div>
             </div>
           </div>
         </div>
       </div>
+      {/* --- MODAL FORMULARIO --- */}
+      // ... (resto del código igual)
+      {/* --- MODAL FORMULARIO --- */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={modalType === "acuerdo" ? "Nuevo Acuerdo" : "Nuevo Recordatorio"}
+      >
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Título
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Escribe un título..."
+              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900"
+              value={formData.title}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
+            />
+          </div>
+
+          {modalType === "acuerdo" && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Descripción
+              </label>
+              <textarea
+                required
+                rows={3}
+                placeholder="Detalles del acuerdo..."
+                className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition text-gray-900"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Fecha
+            </label>
+
+            {/* CAMBIO AQUÍ: Agregamos '[color-scheme:light]' para forzar el icono oscuro */}
+            <input
+              type="date"
+              required
+              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-gray-900 [color-scheme:light]"
+              value={formData.date}
+              onChange={(e) =>
+                setFormData({ ...formData, date: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="w-full bg-blue-600 text-black py-2.5 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm flex justify-center items-center gap-2"
+            >
+              Guardar
+            </button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 }
