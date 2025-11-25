@@ -11,14 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('recordatorios', function (Blueprint $table) {
-            $table->id();
-            $table->string('title');
-            $table->date('date');
-            // El booleano por defecto en false para que inicie como "no hecho"
-            $table->boolean('done')->default(false);
-            $table->timestamps();
-        });
+        // Agregamos esta verificación
+        if (!Schema::hasTable('recordatorios')) {
+            Schema::create('recordatorios', function (Blueprint $table) {
+                $table->id();
+                $table->string('title');
+                $table->date('date');
+                // El booleano por defecto en false para que inicie como "no hecho"
+                $table->boolean('done')->default(false);
+                $table->timestamps();
+            });
+        }
     }
 
     /**

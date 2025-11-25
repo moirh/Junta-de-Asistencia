@@ -11,14 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('acuerdos', function (Blueprint $table) {
-            $table->id();
-            // Aquí agregamos las columnas nuevas
-            $table->string('title');
-            $table->text('description');
-            $table->date('date');
-            $table->timestamps();
-        });
+        // Solo crea la tabla si NO existe previamente
+        if (!Schema::hasTable('acuerdos')) {
+            Schema::create('acuerdos', function (Blueprint $table) {
+                $table->id();
+                $table->string('title');
+                $table->text('description');
+                $table->date('date');
+                $table->timestamps();
+            });
+        }
     }
 
     /**
