@@ -42,3 +42,24 @@ export const toggleRecordatorio = async (id: number, done: boolean) => {
     const response = await api.put(`/recordatorios/${id}`, { done });
     return response.data;
 };
+
+// ... imports y otras funciones
+
+// --- FUNCIONES DE ELIMINAR ---
+
+export const deleteAcuerdo = async (id: number) => {
+    const response = await api.delete(`/acuerdos/${id}`);
+    return response.data;
+};
+
+export const deleteRecordatorio = async (id: number) => {
+    const response = await api.delete(`/recordatorios/${id}`);
+    return response.data;
+};
+
+// ... tus otras funciones
+
+export const toggleAcuerdo = async (id: number, done: boolean) => {
+    const response = await api.put(`/acuerdos/${id}`, { done });
+    return response.data;
+};
