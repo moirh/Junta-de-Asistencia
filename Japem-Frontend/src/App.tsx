@@ -22,10 +22,10 @@ const Layout = () => {
       {/* Si NO es la página de login, mostramos el Header */}
       {!isLoginPage && <Header />}
 
-      {/* Si NO es login, agregamos padding superior (pt-20) para no tapar contenido.
-         Si ES login, quitamos el padding para que quede centrado perfecto.
+      {/* Cambiamos bg-gray-50 a bg-gray-100 para coincidir con el Login.
+         Mantenemos la lógica del padding superior.
       */}
-      <div className={`${isLoginPage ? "" : "pt-20"} min-h-screen bg-gray-50`}>
+      <div className={`${isLoginPage ? "" : "pt-20"} min-h-screen bg-gray-100`}>
         <Routes>
           {/* Rutas Públicas */}
           <Route path="/login" element={<Login />} />

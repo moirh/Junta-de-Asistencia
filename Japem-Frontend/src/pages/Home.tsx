@@ -157,27 +157,20 @@ export default function Home() {
   };
 
   // --- CÁLCULOS SINCRONIZADOS ---
-
-  // 1. Combinamos todo lo que hay en pantalla
   const todosLosEventos = [
     ...acuerdos.map((a) => ({ ...a, type: "Acuerdo" })),
     ...reminders.map((r) => ({ ...r, type: "Recordatorio" })),
   ];
 
-  // 2. Ordenamos por fecha
   todosLosEventos.sort((a, b) => a.date.localeCompare(b.date));
-
-  // 3. Sacamos el primero (El más próximo)
   const nextEvent = todosLosEventos[0];
 
-  // 4. Generamos textos para los widgets
   const totalAcuerdos = acuerdos.length;
-  const recordatoriosPendientes = reminders.length; // Ya solo quedan los pendientes
+  const recordatoriosPendientes = reminders.length; 
   const proximoTexto = nextEvent
     ? `${nextEvent.title} - ${formatDateDisplay(nextEvent.date)}`
     : "Todo al día";
 
-  // 5. Datos para el Calendario
   const calendarEvents: CalendarEvent[] = [
     ...acuerdos.map((a) => ({
       date: a.date,
@@ -194,18 +187,19 @@ export default function Home() {
   return (
     <>
       <Header />
-      <div className="w-full overflow-x-hidden bg-gray-50 text-gray-900 min-h-screen pb-10">
+      <div className="w-full overflow-x-hidden bg-gray-100 text-gray-900 min-h-screen pb-10">
         <div className="w-full overflow-hidden">
-          {" "}
-          <Slider />{" "}
+          <Slider />
         </div>
 
         <div className="w-full px-4 md:px-6 lg:px-10 py-8">
-          {/* --- WIDGETS --- */}
+          {/* --- WIDGETS --- 
+              Se unificó el diseño: Iconos verdes, bordes redondeados XL y sombras más marcadas
+          */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* Widget Acuerdos */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="p-3 bg-blue-100 text-blue-600 rounded-full">
+            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex items-center gap-4">
+              <div className="p-3 bg-green-50 text-green-700 rounded-full">
                 <LayoutDashboard className="w-6 h-6" />
               </div>
               <div>
@@ -217,8 +211,8 @@ export default function Home() {
             </div>
 
             {/* Widget Pendientes */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="p-3 bg-yellow-100 text-yellow-600 rounded-full">
+            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex items-center gap-4">
+              <div className="p-3 bg-green-50 text-green-700 rounded-full">
                 <ListTodo className="w-6 h-6" />
               </div>
               <div>
@@ -229,14 +223,13 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Widget Próximo Evento (CORREGIDO) */}
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-              <div className="p-3 bg-purple-100 text-purple-600 rounded-full">
+            {/* Widget Próximo Evento */}
+            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex items-center gap-4">
+              <div className="p-3 bg-green-50 text-green-700 rounded-full">
                 <CalendarDays className="w-6 h-6" />
               </div>
               <div className="overflow-hidden">
                 <p className="text-gray-500 text-sm">Próximo Evento</p>
-                {/* Truncamos texto largo para que no rompa el diseño */}
                 <h3
                   className="text-lg font-bold text-gray-800 truncate whitespace-nowrap"
                   title={proximoTexto}
@@ -249,14 +242,15 @@ export default function Home() {
 
           <div className="flex flex-wrap gap-6 items-stretch w-full">
             {/* --- LISTA ACUERDOS --- */}
-            <div className="flex-1 min-w-[350px] bg-white rounded-2xl shadow-md p-6 border border-gray-200 flex flex-col">
+            <div className="flex-1 min-w-[350px] bg-white rounded-xl shadow-lg p-6 border border-gray-200 flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">
                   Acuerdos
                 </h2>
+                {/* Botón verde institucional */}
                 <button
                   onClick={() => openModal("acuerdo")}
-                  className="p-2 bg-blue-600 text-black rounded-full hover:bg-blue-700 transition shadow-md"
+                  className="p-2 bg-green-700 text-black rounded-lg hover:bg-green-800 transition shadow-md"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -281,14 +275,15 @@ export default function Home() {
             </div>
 
             {/* --- LISTA RECORDATORIOS Y CALENDARIO --- */}
-            <div className="flex-1 min-w-[350px] bg-white rounded-2xl shadow-md p-6 border border-gray-200 flex flex-col">
+            <div className="flex-1 min-w-[350px] bg-white rounded-xl shadow-lg p-6 border border-gray-200 flex flex-col">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">
                   Recordatorios & Calendario
                 </h2>
+                {/* Botón verde institucional */}
                 <button
                   onClick={() => openModal("recordatorio")}
-                  className="p-2 bg-yellow-500 text-black rounded-full hover:bg-yellow-600 transition shadow-md"
+                  className="p-2 bg-green-700 text-black rounded-lg hover:bg-green-800 transition shadow-md"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -338,7 +333,7 @@ export default function Home() {
               type="text"
               required
               placeholder="Escribe un título..."
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900"
+              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900 focus:ring-2 focus:ring-green-600"
               value={formData.title}
               onChange={(e) =>
                 setFormData({ ...formData, title: e.target.value })
@@ -354,7 +349,7 @@ export default function Home() {
                 required
                 rows={3}
                 placeholder="Detalles..."
-                className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900"
+                className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900 focus:ring-2 focus:ring-green-600"
                 value={formData.description}
                 onChange={(e) =>
                   setFormData({ ...formData, description: e.target.value })
@@ -369,7 +364,7 @@ export default function Home() {
             <input
               type="date"
               required
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900 [color-scheme:light]"
+              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900 focus:ring-2 focus:ring-green-600 [color-scheme:light]"
               value={formData.date}
               onChange={(e) =>
                 setFormData({ ...formData, date: e.target.value })
@@ -377,9 +372,10 @@ export default function Home() {
             />
           </div>
           <div className="pt-2">
+            {/* Botón guardar estilo Login */}
             <button
               type="submit"
-              className="w-full bg-blue-600 text-black py-2.5 rounded-lg hover:bg-blue-700 transition font-medium shadow-sm"
+              className="w-full bg-green-700 text-black py-2.5 rounded-lg hover:bg-green-800 transition font-medium shadow-sm"
             >
               Guardar
             </button>

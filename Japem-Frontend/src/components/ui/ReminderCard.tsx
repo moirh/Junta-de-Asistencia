@@ -11,13 +11,16 @@ interface Reminder {
 interface ReminderCardProps {
   reminder: Reminder;
   onToggle?: () => void;
-  onDelete?: (id: number) => void; // Nueva prop
+  onDelete?: (id: number) => void; 
 }
 
 export const ReminderCard: FC<ReminderCardProps> = ({ reminder, onToggle, onDelete }) => (
   <div 
     className={`p-3 rounded-lg shadow-md transition flex justify-between items-center group
-      ${reminder.done ? "bg-green-50 border border-green-200 text-green-900" : "bg-yellow-50 border border-yellow-200 text-yellow-900 hover:bg-yellow-100"}
+      ${reminder.done 
+        ? "bg-green-50 border border-green-200 text-green-900" 
+        : "bg-green-50 border border-green-200 text-green-900 hover:bg-green-100"
+      }
     `}
   >
     <div className="flex-1">
@@ -38,12 +41,13 @@ export const ReminderCard: FC<ReminderCardProps> = ({ reminder, onToggle, onDele
         </button>
       )}
 
+      {/* Checkbox verde */}
       {onToggle && (
         <input 
           type="checkbox" 
           checked={!!reminder.done} 
           onChange={onToggle}
-          className="w-5 h-5 cursor-pointer accent-blue-600"
+          className="w-5 h-5 cursor-pointer accent-green-700"
         />
       )}
     </div>

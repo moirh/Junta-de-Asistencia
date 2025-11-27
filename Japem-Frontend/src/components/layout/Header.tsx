@@ -55,12 +55,12 @@ export const Header: FC = () => {
               <Link to="/donativos" className={linkClass("/donativos")}>
                 Donativos
               </Link>
-              <Link to="/archivo" className={linkClass("/archivo")}>
+             {/*} <Link to="/archivo" className={linkClass("/archivo")}>
                 Archivo
               </Link>
               <Link to="/contabilidad" className={linkClass("/contabilidad")}>
                 Contabilidad
-              </Link>
+              </Link>*/}
             </>
           )}
         </nav>

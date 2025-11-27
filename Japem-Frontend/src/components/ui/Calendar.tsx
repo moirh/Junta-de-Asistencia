@@ -54,20 +54,20 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
   const selectedEvents = selectedDay ? getEventsForDay(selectedDay) : [];
 
   return (
-    <div className="relative bg-white rounded-2xl shadow-md border border-blue-200 p-6 w-full transition-all">
+    <div className="relative bg-white rounded-2xl shadow-md border border-green-200 p-6 w-full transition-all">
       <div className="flex items-center justify-center mb-4">
         <button onClick={prevMonth} className="p-2 rounded-full hover:bg-blue-100 transition">
-          <ChevronLeft className="w-4 h-4 text-blue-600" />
+          <ChevronLeft className="w-4 h-4 text-green-600" />
         </button>
-        <h3 className="text-lg font-semibold capitalize text-blue-700 mx-4">
+        <h3 className="text-lg font-semibold capitalize text-green-700 mx-4">
           {monthName} {year}
         </h3>
         <button onClick={nextMonth} className="p-2 rounded-full hover:bg-blue-100 transition">
-          <ChevronRight className="w-4 h-4 text-blue-600" />
+          <ChevronRight className="w-4 h-4 text-green-600" />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 text-sm font-semibold mb-2 text-blue-600">
+      <div className="grid grid-cols-7 text-sm font-semibold mb-2 text-green-600">
         {daysOfWeek.map((day) => (
           <div key={day} className="text-center py-1">{day}</div>
         ))}
@@ -89,9 +89,9 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
               onClick={() => handleSelectDay(day)}
               className={`
                 relative aspect-square flex items-center justify-center rounded-lg border text-sm font-medium cursor-pointer transition-all shadow-sm
-                ${isToday ? "bg-blue-500 text-white border-blue-600 shadow-md scale-105" : 
-                  isSelected ? "bg-blue-200 text-blue-800 border-blue-300 scale-105" : 
-                  "bg-blue-50 text-blue-900 border-blue-100 hover:bg-blue-200 hover:border-blue-300"}
+                ${isToday ? "bg-green-500 text-white border-green-600 shadow-md scale-105" : 
+                  isSelected ? "bg-green-200 text-green-800 border-green-300 scale-105" : 
+                  "bg-green-50 text-green-900 border-green-100 hover:bg-green-200 hover:border-green-300"}
               `}
             >
               {day}
@@ -108,20 +108,20 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
 
       {/* --- TOOLTIP MEJORADO --- */}
       {showTooltip && selectedDay && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-blue-200 rounded-xl shadow-2xl p-4 w-72 text-center z-50 animate-fade-in">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-white border border-green-200 rounded-xl shadow-2xl p-4 w-72 text-center z-50 animate-fade-in">
           <div className="flex justify-end">
             <button onClick={closeTooltip} className="text-gray-400 hover:text-gray-600 transition">
               <X className="w-4 h-4" />
             </button>
           </div>
-          <h4 className="text-blue-800 font-semibold mb-2 border-b border-gray-100 pb-2">
+          <h4 className="text-green-800 font-semibold mb-2 border-b border-gray-100 pb-2">
             {selectedDay} de {monthName}
           </h4>
           
           <div className="max-h-40 overflow-y-auto text-left space-y-2">
             {selectedEvents.length > 0 ? (
               selectedEvents.map((evt, idx) => (
-                <div key={idx} className={`text-xs p-2 rounded border ${evt.type === 'acuerdo' ? 'bg-blue-50 border-blue-100 text-blue-700' : 'bg-yellow-50 border-yellow-100 text-yellow-800'}`}>
+                <div key={idx} className={`text-xs p-2 rounded border ${evt.type === 'acuerdo' ? 'bg-blue-50 border-blue-100 text-green-700' : 'bg-green-50 border-green-100 text-green-800'}`}>
                   <strong>{evt.type === 'acuerdo' ? 'Acuerdo:' : 'Recordatorio:'}</strong> {evt.title}
                 </div>
               ))

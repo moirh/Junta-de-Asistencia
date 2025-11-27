@@ -11,7 +11,7 @@ interface Agreement {
 interface AgreementCardProps {
   agreement: Agreement;
   onDelete?: (id: number) => void;
-  onToggle?: () => void; // Nueva propiedad para la palomita
+  onToggle?: () => void;
 }
 
 export const AgreementCard: FC<AgreementCardProps> = ({ agreement, onDelete, onToggle }) => (
@@ -21,24 +21,25 @@ export const AgreementCard: FC<AgreementCardProps> = ({ agreement, onDelete, onT
     <div className="flex flex-col gap-2 flex-1 pr-4">
       <h3 className="font-semibold text-gray-800">{agreement.title}</h3>
       <p className="text-sm text-gray-600 line-clamp-2">{agreement.description}</p>
-      <span className="text-xs font-medium text-blue-600 bg-blue-50 py-1 px-2 rounded-full w-fit">
+      {/* Etiqueta de fecha en verde */}
+      <span className="text-xs font-medium text-green-700 bg-green-50 py-1 px-2 rounded-full w-fit">
         {agreement.date}
       </span>
     </div>
 
     {/* Botones de Acción */}
     <div className="flex flex-col items-center gap-3 mt-1">
-      {/* Palomita (Checkbox) */}
+      {/* Palomita con acento verde */}
       {onToggle && (
         <input 
           type="checkbox" 
           onChange={onToggle}
-          className="w-5 h-5 cursor-pointer accent-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          className="w-5 h-5 cursor-pointer accent-green-700 border-gray-300 rounded focus:ring-green-500"
           title="Marcar como completado"
         />
       )}
 
-      {/* Botón Eliminar (Basura) */}
+      {/* Botón Eliminar */}
       {onDelete && (
         <button 
           onClick={() => onDelete(agreement.id)}

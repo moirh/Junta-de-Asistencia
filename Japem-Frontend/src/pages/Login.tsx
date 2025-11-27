@@ -100,7 +100,7 @@ export const Login = () => {
         </form>
       </div>
 
-      {/* Pie de página opcional */}
+      {/* Pie de página */}
       <p className="mt-8 text-xs text-gray-400">
         © 2025 JAPEM. Todos los derechos reservados.
       </p>
