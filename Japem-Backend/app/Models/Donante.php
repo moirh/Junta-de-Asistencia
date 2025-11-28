@@ -55,4 +55,9 @@ class Donante extends Model
     {
         $this->attributes['nota'] = mb_strtoupper($value, 'UTF-8');
     }
+    public function catalogos()
+{
+    // Un donante puede tener muchos artículos en el catálogo
+    return $this->hasMany(Catalogo::class, 'id_donantes', 'id_donantes');
+}
 }
