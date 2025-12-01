@@ -18,7 +18,21 @@ export const DonantesTable: React.FC = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
-  // Estado del formulario
+  // 1. DEFINIMOS LAS OPCIONES PARA EL SELECT DEL CATÁLOGO
+  // Puedes agregar o cambiar estas opciones según lo que necesites
+  const articuloOptions = [
+    "ALIMENTOS",
+    "MEDICAMENTOS",
+    "ROPA",
+    "MUEBLES",
+    "ELECTRODOMÉSTICOS",
+    "JUGUETES",
+    "MATERIAL DE CURACIÓN",
+    "MATERIAL DE CONSTRUCCIÓN",
+    "EQUIPO DE CÓMPUTO",
+    "OTROS",
+  ];
+
   const [donanteForm, setDonanteForm] = useState({
     fecha: "",
     no_oficio: "",
@@ -29,7 +43,6 @@ export const DonantesTable: React.FC = () => {
     nota: "",
   });
 
-  // NUEVO: Estado para manejar la lista dinámica de artículos del catálogo
   const [catalogoForm, setCatalogoForm] = useState<CatalogoItem[]>([]);
 
   useEffect(() => {
@@ -46,7 +59,6 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
-  // Funciones para manejar el catálogo dinámico
   const handleAddArticulo = () => {
     setCatalogoForm([...catalogoForm, { articulo: "" }]);
   };
@@ -59,7 +71,7 @@ export const DonantesTable: React.FC = () => {
 
   const handleArticuloChange = (index: number, value: string) => {
     const nuevoCatalogo = [...catalogoForm];
-    nuevoCatalogo[index].articulo = value.toUpperCase();
+    nuevoCatalogo[index].articulo = value;
     setCatalogoForm(nuevoCatalogo);
   };
 
@@ -76,7 +88,6 @@ export const DonantesTable: React.FC = () => {
     setCatalogoForm([]);
   };
 
-  // CREAR DONANTE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -86,7 +97,6 @@ export const DonantesTable: React.FC = () => {
         return acc;
       }, {});
 
-      // Filtramos artículos vacíos antes de enviar
       const catalogoValido = catalogoForm.filter(item => item.articulo.trim() !== "");
 
       await createDonante({
@@ -94,7 +104,7 @@ export const DonantesTable: React.FC = () => {
         costo_total: uppercaseForm.costo_total
           ? Number(uppercaseForm.costo_total)
           : undefined,
-        catalogo: catalogoValido // Enviamos el array al backend
+        catalogo: catalogoValido
       });
 
       await fetchDonantes();
@@ -107,7 +117,6 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
-  // ABRIR MODAL EDICIÓN
   const openEditModal = async (id: number) => {
     try {
       const data = await getDonanteById(String(id));
@@ -122,8 +131,6 @@ export const DonantesTable: React.FC = () => {
         nota: data.nota ?? "",
       });
 
-      // Cargar catálogo existente si viene de la API
-      // Nota: Asegúrate de que el backend devuelva 'catalogo' (la relación)
       if (data.catalogo && Array.isArray(data.catalogo)) {
         setCatalogoForm(data.catalogo.map((item: any) => ({ articulo: item.articulo })));
       } else {
@@ -138,7 +145,6 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
-  // ACTUALIZAR DONANTE
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editId) return alert("ID de edición no definido");
@@ -157,7 +163,7 @@ export const DonantesTable: React.FC = () => {
         costo_total: uppercaseForm.costo_total
           ? Number(uppercaseForm.costo_total)
           : undefined,
-        catalogo: catalogoValido // Backend sincronizará estos items
+        catalogo: catalogoValido 
       };
 
       await updateDonante(String(editId), payload);
@@ -174,6 +180,9 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
+  // 2. COLUMNAS DE LA TABLA (NO INCLUYE CATÁLOGO)
+  // Como puedes ver, aquí solo están los datos generales.
+  // El catálogo está oculto en la vista de tabla.
   const columns: any[] = [
     { key: "id_donantes", label: "ID" },
     { key: "fecha", label: "Fecha" },
@@ -186,7 +195,6 @@ export const DonantesTable: React.FC = () => {
     { key: "acciones", label: "Acciones" },
   ];
 
-  // Componente interno para reutilizar el formulario (opcional, aquí lo dejo inline)
   const renderFormContent = (isEdit: boolean, submitFn: (e: React.FormEvent) => void) => (
     <form onSubmit={submitFn} className="space-y-3">
       {Object.keys(donanteForm).map((key) => (
@@ -209,38 +217,45 @@ export const DonantesTable: React.FC = () => {
         </div>
       ))}
 
-      {/* SECCIÓN DE CATÁLOGO */}
+      {/* SECCIÓN DE CATÁLOGO CON SELECT */}
       <div className="border-t pt-4 mt-4">
         <div className="flex justify-between items-center mb-2">
           <label className="font-bold text-gray-700 uppercase">Artículos (Catálogo)</label>
           <button
             type="button"
             onClick={handleAddArticulo}
-            className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+            className="text-xs bg-green-500 text-black px-2 py-1 rounded hover:bg-green-600"
           >
             + AGREGAR ARTÍCULO
           </button>
         </div>
         
         {catalogoForm.length === 0 && (
-          <p className="text-xs text-gray-500 italic">No hay artículos agregados.</p>
+          <p className="text-xs text-gray-500 italic">No hay artículos seleccionados.</p>
         )}
 
         <div className="space-y-2 max-h-40 overflow-y-auto">
           {catalogoForm.map((item, index) => (
             <div key={index} className="flex gap-2">
-              <input
-                type="text"
-                placeholder="NOMBRE DEL ARTÍCULO"
+              {/* 3. AQUÍ CAMBIAMOS EL INPUT POR UN SELECT */}
+              <select
                 value={item.articulo}
                 onChange={(e) => handleArticuloChange(index, e.target.value)}
                 className="border border-gray-300 p-2 w-full rounded text-black text-sm uppercase focus:outline-none focus:ring-1 focus:ring-blue-400"
                 required
-              />
+              >
+                <option value="">SELECCIONE UN ARTÍCULO</option>
+                {articuloOptions.map((opcion) => (
+                  <option key={opcion} value={opcion}>
+                    {opcion}
+                  </option>
+                ))}
+              </select>
+
               <button
                 type="button"
                 onClick={() => handleRemoveArticulo(index)}
-                className="bg-red-500 text-white px-3 rounded hover:bg-red-600"
+                className="bg-red-500 text-black px-3 rounded hover:bg-red-600"
               >
                 🗑️
               </button>
