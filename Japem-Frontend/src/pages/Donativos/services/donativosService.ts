@@ -13,12 +13,13 @@ export const getDonativos = async () => {
 };
 
 // GET: Donativo por ID (para editar)
-export const getDonativoById = async (id: string) => {  // Corregido: string
+export const getDonativoById = async (id: string) => {
   const response = await axios.get(`${API_URL}/donativos/${id}`);
   return response.data;
 };
 
 // POST: Crear donativo
+// Nota: Enviamos las necesidades planas, el backend se encarga de guardarlas en su tabla
 export const createDonativo = async (donativoData: {
   id_japem: string;
   nombre: string;
@@ -38,6 +39,13 @@ export const createDonativo = async (donativoData: {
   const response = await axios.post(`${API_URL}/donativos`, donativoData);
   return response.data;
 };
+
+// PUT: Actualizar donativo
+export const updateDonativo = async (id: string, donativoData: any) => {
+  const response = await axios.put(`${API_URL}/donativos/${id}`, donativoData);
+  return response.data;
+};
+
 // ========================================
 // 📦 DONANTES
 // ========================================
@@ -49,12 +57,13 @@ export const getDonantes = async () => {
 };
 
 // GET: Donante por ID (para editar)
-export const getDonanteById = async (id: string) => {  // Corregido: string
+export const getDonanteById = async (id: string) => {
   const response = await axios.get(`${API_URL}/donantes/${id}`);
   return response.data;
 };
 
 // POST: Crear donante
+// ⚠️ ACTUALIZADO: Ahora acepta el arreglo opcional 'catalogo'
 export const createDonante = async (donanteData: {
   fecha: string;
   no_oficio: string;
@@ -63,14 +72,9 @@ export const createDonante = async (donanteData: {
   descripcion?: string;
   costo_total?: number;
   nota?: string;
+  catalogo?: { articulo: string }[]; // <--- NUEVO CAMPO
 }) => {
   const response = await axios.post(`${API_URL}/donantes`, donanteData);
-  return response.data;
-};
-
-// PUT: Actualizar donativo
-export const updateDonativo = async (id: string, donativoData: any) => {
-  const response = await axios.put(`${API_URL}/donativos/${id}`, donativoData);
   return response.data;
 };
 

@@ -10,7 +10,7 @@ class Donante extends Model
     use HasFactory;
 
     protected $table = 'donantes';
-    protected $primaryKey = 'id_donantes';
+    protected $primaryKey = 'id_donantes'; // PK personalizada
 
     public $incrementing = true;
     protected $keyType = 'int';
@@ -27,37 +27,19 @@ class Donante extends Model
 
     /*
      * ============================
-     *  MUTATORS — MAYÚSCULAS
+     * MUTATORS — MAYÚSCULAS
      * ============================
      */
+    public function setNoOficioAttribute($value) { $this->attributes['no_oficio'] = mb_strtoupper($value, 'UTF-8'); }
+    public function setDonanteAttribute($value) { $this->attributes['donante'] = mb_strtoupper($value, 'UTF-8'); }
+    public function setMunicipioAttribute($value) { $this->attributes['municipio'] = mb_strtoupper($value, 'UTF-8'); }
+    public function setDescripcionAttribute($value) { $this->attributes['descripcion'] = mb_strtoupper($value, 'UTF-8'); }
+    public function setNotaAttribute($value) { $this->attributes['nota'] = mb_strtoupper($value, 'UTF-8'); }
 
-    public function setNoOficioAttribute($value)
-    {
-        $this->attributes['no_oficio'] = mb_strtoupper($value, 'UTF-8');
-    }
-
-    public function setDonanteAttribute($value)
-    {
-        $this->attributes['donante'] = mb_strtoupper($value, 'UTF-8');
-    }
-
-    public function setMunicipioAttribute($value)
-    {
-        $this->attributes['municipio'] = mb_strtoupper($value, 'UTF-8');
-    }
-
-    public function setDescripcionAttribute($value)
-    {
-        $this->attributes['descripcion'] = mb_strtoupper($value, 'UTF-8');
-    }
-
-    public function setNotaAttribute($value)
-    {
-        $this->attributes['nota'] = mb_strtoupper($value, 'UTF-8');
-    }
-    public function catalogos()
-{
+    // RELACIÓN
     // Un donante puede tener muchos artículos en el catálogo
-    return $this->hasMany(Catalogo::class, 'id_donantes', 'id_donantes');
-}
+    public function catalogo()
+    {
+        return $this->hasMany(Catalogo::class, 'id_donantes', 'id_donantes');
+    }
 }

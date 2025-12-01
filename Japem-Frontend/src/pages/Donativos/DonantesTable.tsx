@@ -7,14 +7,18 @@ import {
   updateDonante,
 } from "./services/donativosService";
 
+interface CatalogoItem {
+  articulo: string;
+}
+
 export const DonantesTable: React.FC = () => {
   const [donantes, setDonantes] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
 
-  // ESTADOS PARA EDICIÓN
   const [showEditModal, setShowEditModal] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
 
+  // Estado del formulario
   const [donanteForm, setDonanteForm] = useState({
     fecha: "",
     no_oficio: "",
@@ -24,6 +28,9 @@ export const DonantesTable: React.FC = () => {
     costo_total: "",
     nota: "",
   });
+
+  // NUEVO: Estado para manejar la lista dinámica de artículos del catálogo
+  const [catalogoForm, setCatalogoForm] = useState<CatalogoItem[]>([]);
 
   useEffect(() => {
     fetchDonantes();
@@ -39,7 +46,37 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
-  // CREAR DONANTE (igual que tenías)
+  // Funciones para manejar el catálogo dinámico
+  const handleAddArticulo = () => {
+    setCatalogoForm([...catalogoForm, { articulo: "" }]);
+  };
+
+  const handleRemoveArticulo = (index: number) => {
+    const nuevoCatalogo = [...catalogoForm];
+    nuevoCatalogo.splice(index, 1);
+    setCatalogoForm(nuevoCatalogo);
+  };
+
+  const handleArticuloChange = (index: number, value: string) => {
+    const nuevoCatalogo = [...catalogoForm];
+    nuevoCatalogo[index].articulo = value.toUpperCase();
+    setCatalogoForm(nuevoCatalogo);
+  };
+
+  const resetForms = () => {
+    setDonanteForm({
+      fecha: "",
+      no_oficio: "",
+      donante: "",
+      municipio: "",
+      descripcion: "",
+      costo_total: "",
+      nota: "",
+    });
+    setCatalogoForm([]);
+  };
+
+  // CREAR DONANTE
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -49,25 +86,20 @@ export const DonantesTable: React.FC = () => {
         return acc;
       }, {});
 
+      // Filtramos artículos vacíos antes de enviar
+      const catalogoValido = catalogoForm.filter(item => item.articulo.trim() !== "");
+
       await createDonante({
         ...uppercaseForm,
         costo_total: uppercaseForm.costo_total
           ? Number(uppercaseForm.costo_total)
           : undefined,
+        catalogo: catalogoValido // Enviamos el array al backend
       });
 
       await fetchDonantes();
       setShowModal(false);
-
-      setDonanteForm({
-        fecha: "",
-        no_oficio: "",
-        donante: "",
-        municipio: "",
-        descripcion: "",
-        costo_total: "",
-        nota: "",
-      });
+      resetForms();
 
       alert("✅ Donante creado correctamente");
     } catch (error: any) {
@@ -75,15 +107,11 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
-  // -------------------------
-  // EDICIÓN
-  // -------------------------
-
-  // Abre modal de edición y precarga el formulario desde la API
+  // ABRIR MODAL EDICIÓN
   const openEditModal = async (id: number) => {
     try {
-      const data = await getDonanteById(String(id)); // tu API devuelve por id
-      // Aseguramos formato de los campos que manejas en el formulario
+      const data = await getDonanteById(String(id));
+      
       setDonanteForm({
         fecha: data.fecha ?? "",
         no_oficio: data.no_oficio ?? "",
@@ -94,6 +122,14 @@ export const DonantesTable: React.FC = () => {
         nota: data.nota ?? "",
       });
 
+      // Cargar catálogo existente si viene de la API
+      // Nota: Asegúrate de que el backend devuelva 'catalogo' (la relación)
+      if (data.catalogo && Array.isArray(data.catalogo)) {
+        setCatalogoForm(data.catalogo.map((item: any) => ({ articulo: item.articulo })));
+      } else {
+        setCatalogoForm([]);
+      }
+
       setEditId(id);
       setShowEditModal(true);
     } catch (err) {
@@ -102,24 +138,26 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
-  // Enviar actualización
+  // ACTUALIZAR DONANTE
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editId) return alert("ID de edición no definido");
 
     try {
-      // Conversión y mayúsculas (manteniendo tu lógica)
       const uppercaseForm = Object.keys(donanteForm).reduce((acc: any, key) => {
         const value = (donanteForm as any)[key];
         acc[key] = typeof value === "string" ? value.toUpperCase() : value;
         return acc;
       }, {});
 
+      const catalogoValido = catalogoForm.filter(item => item.articulo.trim() !== "");
+
       const payload = {
         ...uppercaseForm,
         costo_total: uppercaseForm.costo_total
           ? Number(uppercaseForm.costo_total)
           : undefined,
+        catalogo: catalogoValido // Backend sincronizará estos items
       };
 
       await updateDonante(String(editId), payload);
@@ -127,6 +165,7 @@ export const DonantesTable: React.FC = () => {
       await fetchDonantes();
       setShowEditModal(false);
       setEditId(null);
+      resetForms();
 
       alert("✅ Donante actualizado correctamente");
     } catch (error: any) {
@@ -135,7 +174,6 @@ export const DonantesTable: React.FC = () => {
     }
   };
 
-  // Columnas (any[] para evitar problemas de typing por 'acciones')
   const columns: any[] = [
     { key: "id_donantes", label: "ID" },
     { key: "fecha", label: "Fecha" },
@@ -145,8 +183,82 @@ export const DonantesTable: React.FC = () => {
     { key: "descripcion", label: "Descripción" },
     { key: "costo_total", label: "Costo Total" },
     { key: "nota", label: "Nota" },
-    { key: "acciones", label: "Acciones" }, // columna virtual para botones
+    { key: "acciones", label: "Acciones" },
   ];
+
+  // Componente interno para reutilizar el formulario (opcional, aquí lo dejo inline)
+  const renderFormContent = (isEdit: boolean, submitFn: (e: React.FormEvent) => void) => (
+    <form onSubmit={submitFn} className="space-y-3">
+      {Object.keys(donanteForm).map((key) => (
+        <div key={key}>
+          <input
+            type={key === "costo_total" ? "number" : key === "fecha" ? "date" : "text"}
+            placeholder={key.replace(/_/g, " ").toUpperCase()}
+            value={(donanteForm as any)[key]}
+            onChange={(e) =>
+              setDonanteForm({
+                ...donanteForm,
+                [key]: key === "costo_total" || key === "fecha"
+                    ? e.target.value
+                    : e.target.value.toUpperCase(),
+              })
+            }
+            className="border border-gray-300 p-2 w-full rounded text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
+            required={key === "donante" || key === "no_oficio" || key === "fecha"}
+          />
+        </div>
+      ))}
+
+      {/* SECCIÓN DE CATÁLOGO */}
+      <div className="border-t pt-4 mt-4">
+        <div className="flex justify-between items-center mb-2">
+          <label className="font-bold text-gray-700 uppercase">Artículos (Catálogo)</label>
+          <button
+            type="button"
+            onClick={handleAddArticulo}
+            className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+          >
+            + AGREGAR ARTÍCULO
+          </button>
+        </div>
+        
+        {catalogoForm.length === 0 && (
+          <p className="text-xs text-gray-500 italic">No hay artículos agregados.</p>
+        )}
+
+        <div className="space-y-2 max-h-40 overflow-y-auto">
+          {catalogoForm.map((item, index) => (
+            <div key={index} className="flex gap-2">
+              <input
+                type="text"
+                placeholder="NOMBRE DEL ARTÍCULO"
+                value={item.articulo}
+                onChange={(e) => handleArticuloChange(index, e.target.value)}
+                className="border border-gray-300 p-2 w-full rounded text-black text-sm uppercase focus:outline-none focus:ring-1 focus:ring-blue-400"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => handleRemoveArticulo(index)}
+                className="bg-red-500 text-white px-3 rounded hover:bg-red-600"
+              >
+                🗑️
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        className={`w-full text-black px-4 py-2 rounded mt-4 uppercase transition ${
+          isEdit ? "bg-yellow-400 hover:bg-yellow-500" : "bg-blue-600 hover:bg-blue-700"
+        }`}
+      >
+        {isEdit ? "Guardar Cambios" : "Guardar"}
+      </button>
+    </form>
+  );
 
   return (
     <div className="relative uppercase">
@@ -163,79 +275,40 @@ export const DonantesTable: React.FC = () => {
             return (
               <div className="flex gap-2">
                 <button
-                  className="px-3 py-1 bg-yellow-400 text-black rounded"
+                  className="px-3 py-1 bg-yellow-400 text-black rounded hover:bg-yellow-500"
                   onClick={() => openEditModal(row.id_donantes)}
                 >
                   Editar
                 </button>
-                {/* Puedes agregar botón eliminar aquí */}
               </div>
             );
           }
-
-          // Mostrar valor normal (para números y nulls controlamos)
           return value ?? "";
         }}
       />
 
-      {/* Botón flotante para crear */}
       <button
         className="fixed bottom-8 right-8 bg-blue-600 text-black rounded-full w-16 h-16 text-3xl shadow-lg hover:bg-blue-700 transition"
-        onClick={() => setShowModal(true)}
+        onClick={() => {
+          resetForms();
+          setShowModal(true);
+        }}
       >
         +
       </button>
 
       {/* MODAL CREAR */}
       {showModal && (
-        <div
-          className="fixed inset-0 flex justify-center items-center z-50"
-          style={{
-            backgroundColor: "rgba(255, 255, 255, 0.05)",
-            backdropFilter: "blur(2px)",
-          }}
-        >
-          <div className="bg-white text-black p-6 rounded-lg w-full max-w-lg relative max-h-[80vh] overflow-y-auto shadow-2xl uppercase">
+        <div className="fixed inset-0 flex justify-center items-center z-50 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white text-black p-6 rounded-lg w-full max-w-lg relative max-h-[90vh] overflow-y-auto shadow-2xl">
             <button
               className="absolute top-2 right-2 text-gray-700 text-xl hover:text-black"
               onClick={() => setShowModal(false)}
             >
               ✕
             </button>
-
-            <h2 className="text-xl font-bold mb-4 text-center uppercase">
-              Agregar Donante
-            </h2>
-
-            <form onSubmit={handleSubmit} className="space-y-3">
-              {Object.keys(donanteForm).map((key) => (
-                <div key={key}>
-                  <input
-                    type={key === "costo_total" ? "number" : "text"}
-                    placeholder={key.replace(/_/g, " ").toUpperCase()}
-                    value={(donanteForm as any)[key]}
-                    onChange={(e) =>
-                      setDonanteForm({
-                        ...donanteForm,
-                        [key]:
-                          key === "costo_total"
-                            ? e.target.value
-                            : e.target.value.toUpperCase(),
-                      })
-                    }
-                    className="border border-gray-300 p-2 w-full rounded text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 uppercase"
-                    required={key === "donante" || key === "no_oficio"}
-                  />
-                </div>
-              ))}
-
-              <button
-                type="submit"
-                className="bg-blue-600 text-black px-4 py-2 rounded w-full hover:bg-blue-700 transition uppercase"
-              >
-                Guardar
-              </button>
-            </form>
+            <h2 className="text-xl font-bold mb-4 text-center uppercase">Agregar Donante</h2>
+            {renderFormContent(false, handleSubmit)}
           </div>
         </div>
       )}
@@ -243,48 +316,19 @@ export const DonantesTable: React.FC = () => {
       {/* MODAL EDITAR */}
       {showEditModal && (
         <div className="fixed inset-0 flex justify-center items-center bg-black/40 backdrop-blur-sm z-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-lg relative">
+          <div className="bg-white p-6 rounded-lg w-full max-w-lg relative max-h-[90vh] overflow-y-auto">
             <button
               className="absolute top-2 right-2 text-gray-700 text-xl"
               onClick={() => {
                 setShowEditModal(false);
                 setEditId(null);
+                resetForms();
               }}
             >
               ✕
             </button>
-
-            <h2 className="text-xl font-bold mb-4 text-center">Editar Donante</h2>
-
-            <form onSubmit={handleUpdate} className="space-y-3">
-              {Object.keys(donanteForm).map((key) => (
-                <div key={key}>
-                  <input
-                    type={key === "costo_total" ? "number" : "text"}
-                    placeholder={key.replace(/_/g, " ").toUpperCase()}
-                    value={(donanteForm as any)[key]}
-                    onChange={(e) =>
-                      setDonanteForm({
-                        ...donanteForm,
-                        [key]:
-                          key === "costo_total"
-                            ? e.target.value
-                            : e.target.value.toUpperCase(),
-                      })
-                    }
-                    className="border border-gray-300 p-2 w-full rounded text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-yellow-400 uppercase"
-                    required={key === "donante" || key === "no_oficio"}
-                  />
-                </div>
-              ))}
-
-              <button
-                type="submit"
-                className="bg-yellow-600 text-black px-4 py-2 rounded w-full"
-              >
-                Guardar Cambios
-              </button>
-            </form>
+            <h2 className="text-xl font-bold mb-4 text-center uppercase">Editar Donante</h2>
+            {renderFormContent(true, handleUpdate)}
           </div>
         </div>
       )}

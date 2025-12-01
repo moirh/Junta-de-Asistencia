@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; // Agregué React explícito
 import { Table } from "../../components/ui/Table";
 import {
   getDonativos,
@@ -29,35 +29,18 @@ export const DonativosTable = () => {
     veces_don: "",
   });
 
-  // DEFINIMOS LAS OPCIONES DE LA POBLACIÓN
   const poblacionOptions = [
-    "NIÑAS",
-    "NIÑOS",
-    "NIÑAS Y NIÑOS",
-    "ADOLESCENTES",
-    "ADULTOS",
-    "ADULTOS MAYORES",
-    "SIN DATO",
+    "NIÑAS", "NIÑOS", "NIÑAS Y NIÑOS", "ADOLESCENTES",
+    "ADULTOS", "ADULTOS MAYORES", "SIN DATO",
   ];
 
-  //Se define el estatus de los donativos
   const estatusOptions = [
-    "ACTIVO",
-    "INACTIVO",
-    "NUEVA CONSTITUCIÓN",
-    "EN PROCESO",
-    "SIN DATO",
+    "ACTIVO", "INACTIVO", "NUEVA CONSTITUCIÓN", "EN PROCESO", "SIN DATO",
   ];
 
-  // DEFINIMOS LAS OPCIONES DEL RUBRO
   const rubroOptions = [
-    "ANCIANOS",
-    "DESARROLLO SOCIAL",
-    "EDUCACIÓN",
-    "MÉDICO",
-    "NIÑAS, NIÑOS Y ADOLESCENTES",
-    "PERSONAS CON DISCAPACIDAD",
-    "SIN DATO",
+    "ANCIANOS", "DESARROLLO SOCIAL", "EDUCACIÓN", "MÉDICO",
+    "NIÑAS, NIÑOS Y ADOLESCENTES", "PERSONAS CON DISCAPACIDAD", "SIN DATO",
   ];
 
   const labels: Record<string, string> = {
@@ -78,10 +61,7 @@ export const DonativosTable = () => {
   };
 
   const booleanFields = [
-    "certificacion",
-    "candidato",
-    "donataria_aut",
-    "padron_ben",
+    "certificacion", "candidato", "donataria_aut", "padron_ben",
   ];
 
   useEffect(() => {
@@ -92,16 +72,23 @@ export const DonativosTable = () => {
     try {
       const data = await getDonativos();
 
-      const formatted = data.map((item: any) => ({
-        ...item,
-        certificacion: item.certificacion ? "SI" : "NO",
-        candidato: item.candidato ? "SI" : "NO",
-        donataria_aut: item.donataria_aut ? "SI" : "NO",
-        padron_ben: item.padron_ben ? "SI" : "NO",
-        necesidad_pri: formatAsList(item.necesidad_pri),
-        necesidad_sec: formatAsList(item.necesidad_sec),
-        necesidad_com: formatAsList(item.necesidad_com),
-      }));
+      const formatted = data.map((item: any) => {
+        // EXTRAER DATOS DEL OBJETO ANIDADO 'necesidad'
+        // Si la relación no existe (null), usamos un objeto vacío {}
+        const necesidades = item.necesidad || {};
+
+        return {
+          ...item,
+          certificacion: item.certificacion ? "SI" : "NO",
+          candidato: item.candidato ? "SI" : "NO",
+          donataria_aut: item.donataria_aut ? "SI" : "NO",
+          padron_ben: item.padron_ben ? "SI" : "NO",
+          // Usamos los datos anidados para mostrarlos en la tabla
+          necesidad_pri: formatAsList(necesidades.necesidad_pri),
+          necesidad_sec: formatAsList(necesidades.necesidad_sec),
+          necesidad_com: formatAsList(necesidades.necesidad_com),
+        };
+      });
 
       setDonativos(formatted);
     } catch (err) {
@@ -123,6 +110,7 @@ export const DonativosTable = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      // Convertir a mayúsculas
       const uppercaseForm = Object.keys(donativoForm).reduce(
         (acc: any, key) => {
           const value = donativoForm[key];
@@ -141,6 +129,8 @@ export const DonativosTable = () => {
         veces_don: uppercaseForm.veces_don
           ? Number(uppercaseForm.veces_don)
           : 0,
+        // Nota: Enviamos necesidad_pri, etc. en la raíz del payload.
+        // El controlador del Backend ya está programado para leerlos de ahí.
       };
 
       if (editingId) {
@@ -162,12 +152,20 @@ export const DonativosTable = () => {
   const handleEdit = async (id: string) => {
     try {
       const data = await getDonativoById(id);
+      
+      // APLANAR DATOS: Sacar info de 'necesidad' y ponerla en el nivel principal del form
+      const necesidades = data.necesidad || {};
+
       setDonativoForm({
         ...data,
         certificacion: data.certificacion ? "SI" : "NO",
         candidato: data.candidato ? "SI" : "NO",
         donataria_aut: data.donataria_aut ? "SI" : "NO",
         padron_ben: data.padron_ben ? "SI" : "NO",
+        // Mapear campos anidados al formulario plano
+        necesidad_pri: necesidades.necesidad_pri || "",
+        necesidad_sec: necesidades.necesidad_sec || "",
+        necesidad_com: necesidades.necesidad_com || "",
       });
       setEditingId(id);
       setShowModal(true);
@@ -270,14 +268,10 @@ export const DonativosTable = () => {
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-3">
-              {/* 2. CAMPOS NORMALES (ELIMINÉ 'RUBRO' DE AQUÍ) */}
               {[
                 "id_japem",
                 "nombre",
-                // "estatus",
-                // "rubro", <--- SE ELIMINÓ DE AQUÍ
                 "act_asistencial",
-                //"poblacion",
               ].map((key) => (
                 <div key={key}>
                   <label className="block text-sm font-semibold mb-1 uppercase">
@@ -347,7 +341,6 @@ export const DonativosTable = () => {
                 </select>
               </div>
 
-              {/* 3. NUEVO SELECT PARA RUBRO */}
               <div>
                 <label className="block text-sm font-semibold mb-1 uppercase">
                   {labels.rubro}
@@ -372,7 +365,6 @@ export const DonativosTable = () => {
                 </select>
               </div>
 
-              {/* Textareas */}
               {["necesidad_pri", "necesidad_sec", "necesidad_com"].map(
                 (key) => (
                   <div key={key}>
@@ -394,7 +386,6 @@ export const DonativosTable = () => {
                 )
               )}
 
-              {/* Booleanos */}
               <div className="grid grid-cols-2 gap-4">
                 {booleanFields.map((field) => (
                   <div key={field}>
@@ -420,7 +411,6 @@ export const DonativosTable = () => {
                 ))}
               </div>
 
-              {/* Veces donadas */}
               <div className="mt-2">
                 <label className="block text-sm font-semibold mb-1 uppercase">
                   {labels.veces_don}
