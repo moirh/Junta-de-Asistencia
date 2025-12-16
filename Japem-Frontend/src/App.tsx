@@ -14,18 +14,22 @@ import { PrivateRoute } from "./components/layout/PrivateRoute";
 const Layout = () => {
   const location = useLocation();
 
-  // Verificamos si la ruta actual es "/login"
-  const isLoginPage = location.pathname === "/login";
+  // Definimos las rutas que tienen su propio diseño de Header o no lo necesitan
+  // "/login": No lleva header.
+  // "/": La Home ahora tiene su propio header integrado para el efecto transparente.
+  const hiddenHeaderPaths = ["/login", "/"];
+  
+  const shouldHideGlobalLayout = hiddenHeaderPaths.includes(location.pathname);
 
   return (
     <>
-      {/* Si NO es la página de login, mostramos el Header */}
-      {!isLoginPage && <Header />}
+      {/* Solo mostramos el Header global si NO estamos en Login ni en Home */}
+      {!shouldHideGlobalLayout && <Header />}
 
-      {/* Cambiamos bg-gray-50 a bg-gray-100 para coincidir con el Login.
-         Mantenemos la lógica del padding superior.
+      {/* Si estamos en Login o Home, quitamos el padding superior (pt-20) 
+         para que el contenido o el slider lleguen hasta arriba.
       */}
-      <div className={`${isLoginPage ? "" : "pt-20"} min-h-screen bg-gray-100`}>
+      <div className={`${shouldHideGlobalLayout ? "" : "pt-20"} min-h-screen bg-gray-100`}>
         <Routes>
           {/* Rutas Públicas */}
           <Route path="/login" element={<Login />} />

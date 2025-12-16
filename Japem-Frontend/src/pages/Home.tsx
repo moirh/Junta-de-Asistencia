@@ -37,9 +37,7 @@ export default function Home() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalType, setModalType] = useState<"acuerdo" | "recordatorio" | null>(
-    null
-  );
+  const [modalType, setModalType] = useState<"acuerdo" | "recordatorio" | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -47,12 +45,10 @@ export default function Home() {
     date: new Date().toISOString().split("T")[0],
   });
 
-  // Función segura para ordenar por fecha (String 'YYYY-MM-DD')
   const sortByDate = (a: { date: string }, b: { date: string }) => {
     return a.date.localeCompare(b.date);
   };
 
-  // Función para mostrar fecha sin errores de zona horaria
   const formatDateDisplay = (dateString: string) => {
     if (!dateString) return "";
     const [year, month, day] = dateString.split("-");
@@ -67,7 +63,6 @@ export default function Home() {
         getAcuerdos(),
         getRecordatorios(),
       ]);
-      // Guardamos ordenados
       setAcuerdos(acuerdosData.sort(sortByDate));
       setReminders(remindersData.sort(sortByDate));
     } catch (error) {
@@ -81,7 +76,6 @@ export default function Home() {
     fetchData();
   }, []);
 
-  // --- ACCIONES ---
   const handleDeleteAcuerdo = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar este acuerdo?")) return;
     try {
@@ -128,7 +122,6 @@ export default function Home() {
     }
   };
 
-  // --- MODAL ---
   const openModal = (type: "acuerdo" | "recordatorio") => {
     setModalType(type);
     setFormData({
@@ -150,13 +143,12 @@ export default function Home() {
         });
 
       setIsModalOpen(false);
-      fetchData(); // Recarga todo para actualizar orden y widget
+      fetchData();
     } catch (error) {
       console.error(error);
     }
   };
 
-  // --- CÁLCULOS SINCRONIZADOS ---
   const todosLosEventos = [
     ...acuerdos.map((a) => ({ ...a, type: "Acuerdo" })),
     ...reminders.map((r) => ({ ...r, type: "Recordatorio" })),
@@ -166,7 +158,7 @@ export default function Home() {
   const nextEvent = todosLosEventos[0];
 
   const totalAcuerdos = acuerdos.length;
-  const recordatoriosPendientes = reminders.length; 
+  const recordatoriosPendientes = reminders.length;
   const proximoTexto = nextEvent
     ? `${nextEvent.title} - ${formatDateDisplay(nextEvent.date)}`
     : "Todo al día";
@@ -185,203 +177,219 @@ export default function Home() {
   ];
 
   return (
-    <>
-      <Header />
-      <div className="w-full overflow-x-hidden bg-gray-100 text-gray-900 min-h-screen pb-10">
-        <div className="w-full overflow-hidden">
+    <div className="min-h-screen bg-gray-50 font-inter text-gray-800">
+      
+      {/* --- HEADER STICKY --- */}
+      {/* Asegúrate de que NO haya otro <Header /> en App.tsx o main.tsx */}
+      <div className="sticky top-0 z-50 shadow-sm bg-white/90 backdrop-blur-md transition-all duration-300">
+        <Header />
+      </div>
+
+      <main className="w-full pb-12 animate-fade-in-up">
+        {/* Slider Section */}
+        <div className="w-full relative shadow-lg z-0">
           <Slider />
+          <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none"></div>
         </div>
 
-        <div className="w-full px-4 md:px-6 lg:px-10 py-8">
-          {/* --- WIDGETS --- 
-              Se unificó el diseño: Iconos verdes, bordes redondeados XL y sombras más marcadas
-          */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12 relative z-10">
+          
+          {/* --- WIDGETS --- */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* Widget Acuerdos */}
-            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex items-center gap-4">
-              <div className="p-3 bg-green-50 text-green-700 rounded-full">
-                <LayoutDashboard className="w-6 h-6" />
+            <div className="bg-white p-6 rounded-2xl shadow-xl border-t-4 border-colorPrimarioJAPEM hover-lift transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Acuerdos Activos</p>
+                  <h3 className="text-4xl font-extrabold text-colorPrimarioJAPEM mt-1">{totalAcuerdos}</h3>
+                </div>
+                <div className="p-3 bg-green-50 text-colorPrimarioJAPEM rounded-xl">
+                  <LayoutDashboard className="w-8 h-8" />
+                </div>
               </div>
-              <div>
-                <p className="text-gray-500 text-sm">Total Acuerdos</p>
-                <h3 className="text-2xl font-bold text-gray-800">
-                  {totalAcuerdos}
-                </h3>
+              <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-colorPrimarioJAPEM h-1.5 rounded-full" style={{ width: '75%' }}></div>
               </div>
             </div>
 
             {/* Widget Pendientes */}
-            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex items-center gap-4">
-              <div className="p-3 bg-green-50 text-green-700 rounded-full">
-                <ListTodo className="w-6 h-6" />
+            <div className="bg-white p-6 rounded-2xl shadow-xl border-t-4 border-colorTerciarioJAPEM hover-lift transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Pendientes</p>
+                  <h3 className="text-4xl font-extrabold text-colorTerciarioJAPEM mt-1">{recordatoriosPendientes}</h3>
+                </div>
+                <div className="p-3 bg-yellow-50 text-colorTerciarioJAPEM rounded-xl">
+                  <ListTodo className="w-8 h-8" />
+                </div>
               </div>
-              <div>
-                <p className="text-gray-500 text-sm">Pendientes</p>
-                <h3 className="text-2xl font-bold text-gray-800">
-                  {recordatoriosPendientes}
-                </h3>
+              <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-colorTerciarioJAPEM h-1.5 rounded-full" style={{ width: '45%' }}></div>
               </div>
             </div>
 
             {/* Widget Próximo Evento */}
-            <div className="bg-white p-5 rounded-xl shadow-lg border border-gray-100 flex items-center gap-4">
-              <div className="p-3 bg-green-50 text-green-700 rounded-full">
-                <CalendarDays className="w-6 h-6" />
+            <div className="bg-white p-6 rounded-2xl shadow-xl border-t-4 border-blue-600 hover-lift transition-all duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="overflow-hidden pr-2">
+                  <p className="text-gray-500 text-xs font-bold uppercase tracking-wider">Próximo Evento</p>
+                  <h3 className="text-lg font-bold text-gray-800 mt-2 truncate" title={proximoTexto}>
+                    {proximoTexto}
+                  </h3>
+                </div>
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl shrink-0">
+                  <CalendarDays className="w-8 h-8" />
+                </div>
               </div>
-              <div className="overflow-hidden">
-                <p className="text-gray-500 text-sm">Próximo Evento</p>
-                <h3
-                  className="text-lg font-bold text-gray-800 truncate whitespace-nowrap"
-                  title={proximoTexto}
-                >
-                  {proximoTexto}
-                </h3>
+              <div className="w-full bg-gray-100 rounded-full h-1.5">
+                <div className="bg-blue-600 h-1.5 rounded-full" style={{ width: '90%' }}></div>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-6 items-stretch w-full">
-            {/* --- LISTA ACUERDOS --- */}
-            <div className="flex-1 min-w-[350px] bg-white rounded-xl shadow-lg p-6 border border-gray-200 flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  Acuerdos
-                </h2>
-                {/* Botón verde institucional */}
-                <button
-                  onClick={() => openModal("acuerdo")}
-                  className="p-2 bg-green-700 text-black rounded-lg hover:bg-green-800 transition shadow-md"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="space-y-4 flex-1 max-h-[500px] overflow-y-auto">
-                {loading ? (
-                  <p>Cargando...</p>
-                ) : (
-                  acuerdos.map((a) => (
-                    <AgreementCard
-                      key={a.id}
-                      agreement={a}
-                      onDelete={handleDeleteAcuerdo}
-                      onToggle={() => handleToggleAcuerdo(a.id)}
-                    />
-                  ))
-                )}
-                {!loading && acuerdos.length === 0 && (
-                  <p className="text-gray-400 text-center">Sin acuerdos.</p>
-                )}
+          {/* --- CONTENIDO PRINCIPAL --- */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* Columna Izquierda: Acuerdos */}
+            <div className="lg:col-span-5 flex flex-col gap-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-full max-h-[800px]">
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-sm sticky top-0 z-10">
+                  <h2 className="text-xl font-bold text-colorPrimarioJAPEM flex items-center gap-2">
+                    <span className="w-1.5 h-6 bg-colorPrimarioJAPEM rounded-full inline-block"></span>
+                    Acuerdos
+                  </h2>
+                  <button
+                    onClick={() => openModal("acuerdo")}
+                    className="group flex items-center justify-center w-10 h-10 bg-white border border-gray-200 text-colorPrimarioJAPEM rounded-xl hover:bg-colorPrimarioJAPEM hover:text-white hover:border-colorPrimarioJAPEM transition-all duration-300 shadow-sm"
+                  >
+                    <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
+                  </button>
+                </div>
+                
+                <div className="p-4 space-y-3 overflow-y-auto custom-scrollbar flex-1">
+                  {loading ? (
+                    <div className="flex justify-center p-8">
+                      <div className="animate-spin h-8 w-8 border-4 border-colorPrimarioJAPEM border-t-transparent rounded-full"></div>
+                    </div>
+                  ) : acuerdos.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 text-gray-400">
+                      <LayoutDashboard className="w-12 h-12 mb-2 opacity-20" />
+                      <p className="italic">No hay acuerdos registrados.</p>
+                    </div>
+                  ) : (
+                    acuerdos.map((a) => (
+                      <div key={a.id} className="transform transition-all duration-200 hover:scale-[1.01]">
+                        <AgreementCard
+                          agreement={a}
+                          onDelete={handleDeleteAcuerdo}
+                          onToggle={() => handleToggleAcuerdo(a.id)}
+                        />
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* --- LISTA RECORDATORIOS Y CALENDARIO --- */}
-            <div className="flex-1 min-w-[350px] bg-white rounded-xl shadow-lg p-6 border border-gray-200 flex flex-col">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">
-                  Recordatorios & Calendario
-                </h2>
-                {/* Botón verde institucional */}
-                <button
-                  onClick={() => openModal("recordatorio")}
-                  className="p-2 bg-green-700 text-black rounded-lg hover:bg-green-800 transition shadow-md"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-4 flex-1">
-                <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                  {loading ? (
-                    <p>Cargando...</p>
-                  ) : (
-                    reminders.map((r) => (
-                      <ReminderCard
-                        key={r.id}
-                        reminder={r}
-                        onToggle={() => handleToggleReminder(r.id, r.done)}
-                        onDelete={handleDeleteRecordatorio}
-                      />
-                    ))
-                  )}
-                  {!loading && reminders.length === 0 && (
-                    <p className="text-gray-400 text-center">
-                      Sin recordatorios.
-                    </p>
-                  )}
+            {/* Columna Derecha: Recordatorios y Calendario */}
+            <div className="lg:col-span-7 flex flex-col gap-6">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden flex flex-col h-full">
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/80 backdrop-blur-sm">
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <span className="w-1.5 h-6 bg-colorTerciarioJAPEM rounded-full inline-block"></span>
+                    Recordatorios
+                  </h2>
+                  <button
+                    onClick={() => openModal("recordatorio")}
+                    className="group flex items-center justify-center w-10 h-10 bg-white border border-gray-200 text-colorTerciarioJAPEM rounded-xl hover:bg-colorTerciarioJAPEM hover:text-white hover:border-colorTerciarioJAPEM transition-all duration-300 shadow-sm"
+                  >
+                    <Plus className="w-5 h-5 transition-transform group-hover:rotate-90" />
+                  </button>
                 </div>
-                <div className="flex justify-center">
-                  <Calendar events={calendarEvents} />
+
+                <div className="p-6 grid lg:grid-cols-2 gap-8">
+                  <div className="space-y-4 max-h-[450px] overflow-y-auto custom-scrollbar pr-2">
+                    {loading ? (
+                       <p className="text-center py-4 text-gray-500">Cargando...</p>
+                    ) : reminders.length === 0 ? (
+                       <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+                          <ListTodo className="w-10 h-10 mb-2 opacity-20" />
+                          <p>¡Todo al día!</p>
+                       </div>
+                    ) : (
+                      reminders.map((r) => (
+                        <div key={r.id} className="transform transition-all duration-200 hover:translate-x-1">
+                          <ReminderCard
+                            reminder={r}
+                            onToggle={() => handleToggleReminder(r.id, r.done)}
+                            onDelete={handleDeleteRecordatorio}
+                          />
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-2xl p-4 shadow-inner border border-gray-100">
+                    <Calendar events={calendarEvents} />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* --- MODAL --- */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={modalType === "acuerdo" ? "Nuevo Acuerdo" : "Nuevo Recordatorio"}
       >
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título
-            </label>
+        <form onSubmit={handleSubmit} className="space-y-6 pt-2">
+          <div className="form-field delay-1">
+            <label className="block text-sm font-bold text-gray-700 mb-2">Título</label>
             <input
               type="text"
               required
               placeholder="Escribe un título..."
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900 focus:ring-2 focus:ring-green-600"
+              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-colorPrimarioJAPEM focus:ring-0 transition-colors text-gray-800 placeholder-gray-400"
               value={formData.title}
-              onChange={(e) =>
-                setFormData({ ...formData, title: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
             />
           </div>
           {modalType === "acuerdo" && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descripción
-              </label>
+            <div className="form-field delay-2">
+              <label className="block text-sm font-bold text-gray-700 mb-2">Descripción</label>
               <textarea
                 required
                 rows={3}
-                placeholder="Detalles..."
-                className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900 focus:ring-2 focus:ring-green-600"
+                placeholder="Detalles del acuerdo..."
+                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-colorPrimarioJAPEM focus:ring-0 transition-colors text-gray-800 placeholder-gray-400 resize-none"
                 value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha
-            </label>
+          <div className="form-field delay-3">
+            <label className="block text-sm font-bold text-gray-700 mb-2">Fecha</label>
             <input
               type="date"
               required
-              className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg outline-none text-gray-900 focus:ring-2 focus:ring-green-600 [color-scheme:light]"
+              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-colorPrimarioJAPEM focus:ring-0 transition-colors text-gray-800 [color-scheme:light]"
               value={formData.date}
-              onChange={(e) =>
-                setFormData({ ...formData, date: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
             />
           </div>
-          <div className="pt-2">
-            {/* Botón guardar estilo Login */}
+          <div className="pt-4 form-field delay-4">
             <button
               type="submit"
-              className="w-full bg-green-700 text-black py-2.5 rounded-lg hover:bg-green-800 transition font-medium shadow-sm"
+              className="w-full bg-gradient-to-r from-colorPrimarioJAPEM to-[#048066] text-white py-3.5 rounded-xl hover:shadow-lg hover:shadow-colorPrimarioJAPEM/30 transition-all duration-300 font-bold transform active:scale-95 flex justify-center items-center gap-2"
             >
-              Guardar
+              <span>Guardar</span>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
             </button>
           </div>
         </form>
       </Modal>
-    </>
+    </div>
   );
 }

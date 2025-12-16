@@ -36,10 +36,4 @@ class Donante extends Model
     public function setDescripcionAttribute($value) { $this->attributes['descripcion'] = mb_strtoupper($value, 'UTF-8'); }
     public function setNotaAttribute($value) { $this->attributes['nota'] = mb_strtoupper($value, 'UTF-8'); }
 
-    // RELACIÓN
-    // Un donante puede tener muchos artículos en el catálogo
-    public function catalogo()
-    {
-        return $this->hasMany(Catalogo::class, 'id_donantes', 'id_donantes');
-    }
 }
