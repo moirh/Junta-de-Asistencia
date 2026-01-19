@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { DonantesTable } from "./DonantesTable";
+import DonantesTable from "./DonantesTable";
 import { DonativosTable } from "./DonativosTable";
-import { HandHeart, Users } from "lucide-react"; // Asegúrate de tener estos iconos o usa texto si no
+import { IapTable } from "../Iap/IapTable"; 
+import { EntregasView } from "./EntregasView"; // <--- Importamos la nueva vista
+import { HandHeart, Users, Building2, Truck } from "lucide-react";
 
 export const Donativos = () => {
-  const [activeTab, setActiveTab] = useState<"donantes" | "donativos">("donantes");
+  // Ahora tenemos 4 tabs
+  const [activeTab, setActiveTab] = useState<"donantes" | "donativos" | "iaps" | "distribucion">("donantes");
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 font-inter animate-fade-in-up">
@@ -13,43 +16,40 @@ export const Donativos = () => {
         {/* Encabezado */}
         <div className="mb-8">
           <h1 className="text-3xl font-extrabold text-colorPrimarioJAPEM tracking-tight">
-            Gestión de Donativos
+            Gestión de Recursos
           </h1>
-          <p className="text-gray-500 mt-2 text-sm">
-            Administra los donantes y el registro de donativos recibidos.
-          </p>
         </div>
 
-        {/* Tabs de Navegación */}
-        <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-sm border border-gray-100 w-fit mb-8">
-          <button
-            onClick={() => setActiveTab("donantes")}
-            className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${
-              activeTab === "donantes"
-                ? "bg-colorPrimarioJAPEM text-black shadow-md"
-                : "text-gray-500 hover:text-colorPrimarioJAPEM hover:bg-gray-50"
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            Donantes
+        {/* Tabs de Navegación (4 Botones) */}
+        <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 w-fit mb-8">
+          
+          <button onClick={() => setActiveTab("donantes")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "donantes" ? "bg-colorPrimarioJAPEM text-black shadow" : "text-gray-500 hover:bg-gray-50"}`}>
+            <Users size={16} /> Donantes
           </button>
-          <button
-            onClick={() => setActiveTab("donativos")}
-            className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${
-              activeTab === "donativos"
-                ? "bg-colorPrimarioJAPEM text-black shadow-md"
-                : "text-gray-500 hover:text-colorPrimarioJAPEM hover:bg-gray-50"
-            }`}
-          >
-            <HandHeart className="w-4 h-4" />
-            Donativos
+
+          <button onClick={() => setActiveTab("donativos")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "donativos" ? "bg-colorPrimarioJAPEM text-black shadow" : "text-gray-500 hover:bg-gray-50"}`}>
+            <HandHeart size={16} /> Entradas
           </button>
+
+          <button onClick={() => setActiveTab("iaps")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "iaps" ? "bg-colorPrimarioJAPEM text-black shadow" : "text-gray-500 hover:bg-gray-50"}`}>
+            <Building2 size={16} /> Instituciones
+          </button>
+
+          {/* BOTÓN NUEVO: DISTRIBUCIÓN */}
+          <button onClick={() => setActiveTab("distribucion")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "distribucion" ? "bg-purple-600 text-white shadow" : "text-gray-500 hover:bg-gray-50"}`}>
+            <Truck size={16} /> Distribución
+          </button>
+
         </div>
 
-        {/* Contenido con transición */}
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 lg:p-8 animate-fade-in-up delay-100">
-          {activeTab === "donantes" ? <DonantesTable /> : <DonativosTable />}
+        {/* Contenido */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 lg:p-8 animate-fade-in-up delay-100 min-h-[500px]">
+          {activeTab === "donantes" && <DonantesTable />}
+          {activeTab === "donativos" && <DonativosTable />}
+          {activeTab === "iaps" && <IapTable />}
+          {activeTab === "distribucion" && <EntregasView />} {/* <--- Nueva vista aquí */}
         </div>
+        
       </div>
     </div>
   );

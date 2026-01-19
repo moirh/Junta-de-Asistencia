@@ -1,392 +1,483 @@
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { Plus, Eye, User, Package, Trash2, CheckCircle, Barcode, Calendar, DollarSign, Box, Tag, Layers, Hash } from "lucide-react";
 import { Table } from "../../components/ui/Table";
-import { Plus, Edit2, Save, X, CheckCircle, FileText } from "lucide-react";
-import {
-  getDonativos,
-  createDonativo,
-  getDonativoById,
-  updateDonativo,
-} from "./services/donativosService";
+import { Modal } from "../../components/ui/Modal";
+import { getDonativos, createDonativo } from "../../services/donativosService";
+import { getDonantes } from "../../services/donantesService";
+import type { Donativo, Donante } from "../../types";
 
 export const DonativosTable = () => {
-  // ... (Todo tu código de lógica, estados y handlers se queda IGUAL) ...
-  const [donativos, setDonativos] = useState<any[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [donativos, setDonativos] = useState<Donativo[]>([]);
+  const [donantes, setDonantes] = useState<Donante[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedDonativo, setSelectedDonativo] = useState<Donativo | null>(null);
 
-  const [donativoForm, setDonativoForm] = useState<any>({
-    id_japem: "",
-    nombre: "",
-    estatus: "",
-    rubro: "",
-    act_asistencial: "",
-    poblacion: "",
-    necesidad_pri: "",
-    necesidad_sec: "",
-    necesidad_com: "",
-    certificacion: "",
-    candidato: "",
-    donataria_aut: "",
-    padron_ben: "",
-    veces_don: "",
-  });
-
-  const poblacionOptions = [
-    "NIÑAS", "NIÑOS", "NIÑAS Y NIÑOS", "ADOLESCENTES",
-    "ADULTOS", "ADULTOS MAYORES", "SIN DATO",
-  ];
-
-  const estatusOptions = [
-    "ACTIVO", "INACTIVO", "NUEVA CONSTITUCIÓN", "EN PROCESO", "SIN DATO",
-  ];
-
-  const rubroOptions = [
-    "ANCIANOS", "DESARROLLO SOCIAL", "EDUCACIÓN", "MÉDICO",
-    "NIÑAS, NIÑOS Y ADOLESCENTES", "PERSONAS CON DISCAPACIDAD", "SIN DATO",
-  ];
-
-  const labels: Record<string, string> = {
-    id_japem: "ID JAPEM",
-    nombre: "Nombre",
-    estatus: "Estatus",
-    rubro: "Rubro",
-    act_asistencial: "Actividad Asistencial",
-    poblacion: "Población",
-    necesidad_pri: "Necesidad Primaria",
-    necesidad_sec: "Necesidad Secundaria",
-    necesidad_com: "Necesidad Complementaria",
-    certificacion: "Certificación",
-    candidato: "Candidato",
-    donataria_aut: "Donataria Aut.",
-    padron_ben: "Padrón Ben.",
-    veces_don: "Veces Donadas",
+  // Estado inicial del formulario
+  const initialFormState = {
+    donante_id: 0,
+    fecha_donativo: new Date().toISOString().split('T')[0],
+    monto_total_deducible: 0,
+    observaciones: "",
+    detalles: [] as any[]
   };
 
-  const booleanFields = ["certificacion", "candidato", "donataria_aut", "padron_ben"];
+  const [formData, setFormData] = useState(initialFormState);
 
   useEffect(() => {
-    fetchDonativos();
+    fetchData();
   }, []);
 
-  const fetchDonativos = async () => {
+  const fetchData = async () => {
     try {
-      const data = await getDonativos();
-      const formatted = data.map((item: any) => {
-        return {
-          ...item,
-          certificacion: item.certificacion ? "SI" : "NO",
-          candidato: item.candidato ? "SI" : "NO",
-          donataria_aut: item.donataria_aut ? "SI" : "NO",
-          padron_ben: item.padron_ben ? "SI" : "NO",
-          necesidad_pri: formatAsList(item.necesidad_pri),
-          necesidad_sec: formatAsList(item.necesidad_sec),
-          necesidad_com: formatAsList(item.necesidad_com),
-        };
-      });
-      setDonativos(formatted);
-    } catch (err) {
-      console.error("Error fetching donativos:", err);
-    }
-  };
-
-  const formatAsList = (text: string | null) => {
-    if (!text) return "";
-    const items = text.split(/\r?\n|;/).map((t) => t.trim()).filter(Boolean);
-    if (items.length === 0) return "";
-    return `<ul class="list-disc list-inside text-xs text-gray-600 leading-tight min-w-[200px] space-y-1">${items
-      .map((i) => `<li>${i}</li>`)
-      .join("")}</ul>`;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const uppercaseForm = Object.keys(donativoForm).reduce((acc: any, key) => {
-        const value = donativoForm[key];
-        acc[key] = typeof value === "string" ? value.toUpperCase() : value;
-        return acc;
-      }, {});
-
-      const payload = {
-        ...uppercaseForm,
-        certificacion: uppercaseForm.certificacion === "SI",
-        candidato: uppercaseForm.candidato === "SI",
-        donataria_aut: uppercaseForm.donataria_aut === "SI",
-        padron_ben: uppercaseForm.padron_ben === "SI",
-        veces_don: uppercaseForm.veces_don ? Number(uppercaseForm.veces_don) : 0,
-      };
-
-      if (editingId) {
-        await updateDonativo(editingId, payload);
-        alert("✅ Donativo actualizado correctamente");
-      } else {
-        await createDonativo(payload);
-        alert("✅ Donativo creado correctamente");
-      }
-
-      await fetchDonativos();
-      handleCloseModal();
-    } catch (error: any) {
-      alert(error.response?.data?.message || "❌ Error al guardar donativo");
-    }
-  };
-
-  const handleEdit = async (id: string) => {
-    try {
-      const data = await getDonativoById(id);
-      setDonativoForm({
-        ...data,
-        certificacion: data.certificacion ? "SI" : "NO",
-        candidato: data.candidato ? "SI" : "NO",
-        donataria_aut: data.donataria_aut ? "SI" : "NO",
-        padron_ben: data.padron_ben ? "SI" : "NO",
-        necesidad_pri: data.necesidad_pri || "",
-        necesidad_sec: data.necesidad_sec || "",
-        necesidad_com: data.necesidad_com || "",
-      });
-      
-      setEditingId(id);
-      setShowModal(true);
+      setLoading(true);
+      const [donativosData, donantesData] = await Promise.all([
+        getDonativos(),
+        getDonantes()
+      ]);
+      setDonativos(Array.isArray(donativosData) ? donativosData : []);
+      setDonantes(Array.isArray(donantesData) ? donantesData : []);
     } catch (error) {
-      alert("❌ No se pudo cargar el donativo");
+      console.error("Error cargando datos:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setEditingId(null);
-    setDonativoForm({
-      id_japem: "", nombre: "", estatus: "", rubro: "", act_asistencial: "",
-      poblacion: "", necesidad_pri: "", necesidad_sec: "", necesidad_com: "",
-      certificacion: "", candidato: "", donataria_aut: "", padron_ben: "", veces_don: "",
+  const addProductoRow = () => {
+    setFormData({
+      ...formData,
+      detalles: [
+        ...formData.detalles,
+        {
+          clave_sat: "",
+          categoria_producto: "",
+          nombre_producto: "",
+          modalidad: "",
+          clave_unidad: "",
+          cantidad: 1,
+          precio_venta_unitario: 0,
+          precio_venta_total: 0,
+          precio_unitario_deducible: 0,
+          monto_deducible_total: 0
+        }
+      ]
     });
   };
 
+  const removeProductoRow = (index: number) => {
+    const newDetalles = [...formData.detalles];
+    newDetalles.splice(index, 1);
+    setFormData({ ...formData, detalles: newDetalles });
+  };
+
+  const handleProductChange = (index: number, field: string, value: any) => {
+    const newDetalles = [...formData.detalles];
+    newDetalles[index][field] = value;
+
+    // Auto-cálculos
+    if (field === 'cantidad' || field === 'precio_venta_unitario') {
+      const cant = Number(newDetalles[index].cantidad) || 0;
+      const price = Number(newDetalles[index].precio_venta_unitario) || 0;
+      newDetalles[index].precio_venta_total = cant * price;
+    }
+    
+    if (field === 'cantidad' || field === 'precio_unitario_deducible') {
+      const cant = Number(newDetalles[index].cantidad) || 0;
+      const price = Number(newDetalles[index].precio_unitario_deducible) || 0;
+      newDetalles[index].monto_deducible_total = cant * price;
+    }
+
+    setFormData({ ...formData, detalles: newDetalles });
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (formData.donante_id === 0) {
+      alert("Por favor selecciona un donante");
+      return;
+    }
+    if (formData.detalles.length === 0) {
+      alert("Debes agregar al menos un producto");
+      return;
+    }
+
+    try {
+      const totalGlobal = formData.detalles.reduce((sum, item) => sum + (item.monto_deducible_total || 0), 0);
+      await createDonativo({ ...formData, monto_total_deducible: totalGlobal }); 
+      setIsModalOpen(false);
+      setFormData(initialFormState);
+      fetchData();
+    } catch (error) {
+      console.error("Error al guardar:", error);
+      alert("Error al guardar el donativo.");
+    }
+  };
+
   const columns = [
-    { key: "id_japem", label: "ID" },
-    { key: "nombre", label: "Nombre" },
-    { key: "estatus", label: "Estatus" },
-    { key: "rubro", label: "Rubro" },
-    { key: "act_asistencial", label: "Actividad Asistencial" },
-    { key: "poblacion", label: "Población" },
-    { key: "necesidad_pri", label: "Nec. Primaria", isHtml: true },
-    { key: "necesidad_sec", label: "Nec. Secundaria", isHtml: true },
-    { key: "necesidad_com", label: "Nec. Comp.", isHtml: true },
-    { key: "certificacion", label: "Cert." },
-    { key: "candidato", label: "Cand." },
-    { key: "donataria_aut", label: "Donat." },
-    { key: "padron_ben", label: "Padrón" },
-    { key: "veces_don", label: "Veces" },
-    { key: "acciones", label: "Acciones" },
+    { key: "fecha_donativo" as keyof Donativo, label: "Fecha" },
+    { key: "donante" as keyof Donativo, label: "Donante" },
+    { key: "observaciones" as keyof Donativo, label: "Observaciones" },
+    { key: "categoria_producto" as keyof Donativo, label: "Categoria"},
+    { key: "monto_total_deducible" as keyof Donativo, label: "Monto Total" },
+    { key: "id" as keyof Donativo, label: "Acciones" },
   ];
 
-  const renderFormContent = (isEdit: boolean, submitFn: (e: React.FormEvent) => void) => (
-    <form onSubmit={submitFn} className="space-y-5">
-      {/* ... (Contenido del formulario se mantiene igual) ... */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {(["id_japem", "nombre", "act_asistencial"] as string[]).map((key) => (
-          <div key={key} className={key === "nombre" || key === "act_asistencial" ? "md:col-span-2" : ""}>
-            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">
-              {labels[key]}
-            </label>
-            <input
-              type="text"
-              value={donativoForm[key]}
-              onChange={(e) => setDonativoForm({...donativoForm, [key]: e.target.value.toUpperCase()})}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-colorPrimarioJAPEM focus:ring-1 focus:ring-colorPrimarioJAPEM transition-all uppercase placeholder:normal-case"
-              placeholder={`Ingrese ${labels[key]}`}
-              required={key !== "act_asistencial"}
-            />
-          </div>
-        ))}
-
-        {[
-          { key: "poblacion", options: poblacionOptions },
-          { key: "estatus", options: estatusOptions },
-          { key: "rubro", options: rubroOptions }
-        ].map(({ key, options }) => (
-          <div key={key}>
-            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">{labels[key]}</label>
-            <select
-              value={donativoForm[key]}
-              onChange={(e) => setDonativoForm({...donativoForm, [key]: e.target.value})}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-colorPrimarioJAPEM focus:ring-1 focus:ring-colorPrimarioJAPEM transition-all uppercase cursor-pointer"
-              required
-            >
-              <option value="">-- SELECCIONE --</option>
-              {options.map(op => <option key={op} value={op}>{op}</option>)}
-            </select>
-          </div>
-        ))}
-
-        {(["necesidad_pri", "necesidad_sec", "necesidad_com"] as string[]).map((key) => (
-          <div key={key} className="md:col-span-1">
-            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">{labels[key]}</label>
-            <textarea
-              value={donativoForm[key]}
-              onChange={(e) => setDonativoForm({...donativoForm, [key]: e.target.value})}
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-colorPrimarioJAPEM focus:ring-1 focus:ring-colorPrimarioJAPEM transition-all uppercase resize-none h-24 placeholder:normal-case"
-              placeholder="Descripción..."
-            />
-          </div>
-        ))}
-
-        <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200">
-          <label className="col-span-full text-xs font-bold text-gray-400 uppercase tracking-wider mb-[-10px]">Indicadores</label>
-          {(booleanFields as string[]).map((field) => (
-            <div key={field}>
-              <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase block">{labels[field]}</label>
-              <select
-                value={donativoForm[field]}
-                onChange={(e) => setDonativoForm({...donativoForm, [field]: e.target.value})}
-                className="w-full px-4 py-2.5 bg-white border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-colorPrimarioJAPEM focus:ring-1 focus:ring-colorPrimarioJAPEM transition-all uppercase"
-                required
-              >
-                <option value="">--</option>
-                <option value="SI">SI</option>
-                <option value="NO">NO</option>
-              </select>
-            </div>
-          ))}
-        </div>
-
+  return (
+    <div className="p-6 animate-fade-in relative">
+      {/* HEADER */}
+      <div className="flex justify-between items-end mb-8">
         <div>
-          <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">{labels.veces_don}</label>
-          <input
-            type="number"
-            min={0}
-            value={donativoForm.veces_don}
-            onChange={(e) => setDonativoForm({...donativoForm, veces_don: Number(e.target.value)})}
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-colorPrimarioJAPEM focus:ring-1 focus:ring-colorPrimarioJAPEM transition-all"
-          />
+          <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Registro de Entradas</h2>
+          <p className="text-gray-500 mt-1">Gestiona los donativos recibidos y actualiza tu inventario.</p>
         </div>
-      </div>
-
-      <div className="pt-4">
         <button
-          type="submit"
-          className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-gradient-to-r from-colorPrimarioJAPEM to-[#048066] text-white font-bold rounded-xl shadow-lg hover:shadow-colorPrimarioJAPEM/30 hover:-translate-y-0.5 transition-all duration-300 active:scale-95"
+          onClick={() => setIsModalOpen(true)}
+          className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg shadow-purple-200 transition-all flex items-center gap-2 transform active:scale-95"
         >
-          <Save className="w-4 h-4" />
-          {isEdit ? "Guardar Cambios" : "Guardar Registro"}
+          <Plus size={20} />
+          Nuevo Donativo
         </button>
       </div>
-    </form>
-  );
 
-  return (
-    <div className="relative">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <span className="w-2 h-6 bg-colorPrimarioJAPEM rounded-full"></span>
-          LISTADO DE DONATIVOS
-        </h2>
-      </div>
-
-      <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
-        <div className="min-w-[2000px] inline-block w-full">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mb-4"></div>
+           <p className="text-gray-400 font-medium">Cargando registros...</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden">
           <Table
             data={donativos}
             columns={columns}
-            rowsPerPage={5}
             renderCell={(key, value, row) => {
-              if (key === "acciones") {
+              if (key === "fecha_donativo") {
+                return (
+                  <div className="flex items-center gap-2 text-gray-700">
+                    <Calendar size={16} className="text-purple-400" />
+                    <span className="capitalize">
+                      {new Date(value).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}
+                    </span>
+                  </div>
+                );
+              }
+              if (key === "donante") {
+                return (
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 font-bold text-xs">
+                        {row.donante?.razon_social?.substring(0,2).toUpperCase()}
+                    </div>
+                    <span className="font-semibold text-gray-700">
+                      {row.donante?.razon_social || "Desconocido"}
+                    </span>
+                  </div>
+                );
+              }
+              if (key === "monto_total_deducible") {
+                return (
+                  <span className="bg-green-50 text-green-700 px-3 py-1 rounded-full font-bold text-sm border border-green-100">
+                    ${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                  </span>
+                );
+              }
+              if (key === "id") {
                 return (
                   <button
-                    onClick={() => handleEdit(row.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-colorTerciarioJAPEM text-colorTerciarioJAPEM text-xs font-bold rounded-lg hover:bg-colorTerciarioJAPEM hover:text-white transition-all duration-300 shadow-sm"
+                    onClick={() => { setSelectedDonativo(row); setIsViewModalOpen(true); }}
+                    className="flex items-center gap-2 text-gray-500 hover:text-purple-600 hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors font-medium text-sm"
                   >
-                    <Edit2 className="w-3 h-3" /> Editar
+                    <Eye size={18} /> Ver Detalles
                   </button>
                 );
               }
-              if (key === "estatus") {
-                const color = value === "ACTIVO" ? "text-green-700 bg-green-100" : "text-gray-600 bg-gray-100";
-                return <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${color}`}>{value}</span>;
-              }
-              if (booleanFields.includes(key as string)) {
-                 return value === "SI" 
-                   ? <span className="flex items-center gap-1 text-green-600 font-bold text-xs"><CheckCircle className="w-3 h-3"/> SI</span> 
-                   : <span className="text-gray-300 text-xs">NO</span>;
-              }
-              if (columns.find((c) => c.key === key)?.isHtml) {
-                return <div dangerouslySetInnerHTML={{ __html: value }} />;
-              }
-              return <span className="text-sm text-gray-600 truncate max-w-[250px] block" title={value}>{value}</span>;
+              return value;
             }}
           />
         </div>
-      </div>
-
-      {showModal && (
-        <div className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300">
-          <div className="bg-white p-8 rounded-2xl w-full max-w-4xl relative max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-in-up border border-gray-100">
-            <button
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors"
-              onClick={handleCloseModal}
-            >
-              <X className="w-6 h-6" />
-            </button>
-            <h2 className="text-2xl font-bold mb-6 text-colorPrimarioJAPEM border-b pb-2 border-gray-100 uppercase flex items-center gap-2">
-              <FileText className="w-6 h-6"/>
-              {editingId ? "EDITAR DONATIVO" : "AGREGAR DONATIVO"}
-            </h2>
-            {renderFormContent(!!editingId, handleSubmit)}
-          </div>
-        </div>
       )}
 
-      <button
-        className="fixed bottom-10 right-10 w-14 h-14 bg-gradient-to-r from-colorPrimarioJAPEM to-[#048066] text-white rounded-full shadow-2xl shadow-colorPrimarioJAPEM/40 flex items-center justify-center hover:scale-110 transition-transform duration-300 z-40 group"
-        onClick={() => {
-          handleCloseModal();
-          setShowModal(true);
-        }}
+      {/* --- MODAL DE REGISTRO (CON TAMAÑO GIGANTE) --- */}
+      <Modal 
+          isOpen={isModalOpen} 
+          onClose={() => setIsModalOpen(false)} 
+          title="Registrar Entrada"
+          size="extraLarge" 
       >
-        <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
-      </button>
+        <form onSubmit={handleSave} className="space-y-8">
+          
+          {/* SECCIÓN 1: DATOS DEL DONANTE (Horizontal) */}
+          <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100">
+            <h3 className="text-sm font-extrabold text-purple-800 uppercase tracking-wide flex items-center gap-2 mb-4">
+              <User size={18} /> Información del Donante
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Donante ocupa 5 columnas */}
+              <div className="md:col-span-5 space-y-1.5">
+                <label className="text-sm font-bold text-gray-700">Seleccionar Donante *</label>
+                <select
+                  required
+                  className="w-full p-3 border border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-200 outline-none bg-white"
+                  value={formData.donante_id}
+                  onChange={(e) => setFormData({ ...formData, donante_id: Number(e.target.value) })}
+                >
+                  <option value={0}>-- Buscar en el padrón --</option>
+                  {donantes.map((d) => (
+                    <option key={d.id} value={d.id}>{d.razon_social} ({d.rfc})</option>
+                  ))}
+                </select>
+              </div>
 
-      {/* ESTA ES LA PARTE IMPORTANTE MODIFICADA */}
-      <style>{`
-        /* 1. Estiliza la barra EXTERNA (La Gris/Naranja) para que se vea bien */
-        .custom-scrollbar::-webkit-scrollbar {
-          height: 10px; /* Un poco más alta para agarrarla fácil */
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #d1d5db;
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af;
-        }
+              {/* Fecha ocupa 3 columnas */}
+              <div className="md:col-span-3 space-y-1.5">
+                <label className="text-sm font-bold text-gray-700">Fecha Recepción *</label>
+                <div className="relative">
+                    <input
+                    type="date"
+                    required
+                    className="w-full p-3 pl-10 border border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-200 outline-none"
+                    value={formData.fecha_donativo}
+                    onChange={(e) => setFormData({ ...formData, fecha_donativo: e.target.value })}
+                    />
+                    <Calendar className="absolute left-3 top-3.5 text-purple-400" size={18} />
+                </div>
+              </div>
 
-        /* 2. SOLUCIÓN NUCLEAR: Desactivar el scroll interno */
-        
-        /* Esto obliga a la etiqueta <table> a llenar los 2000px */
-        .custom-scrollbar table {
-          width: 100% !important;
-          min-width: 100% !important;
-        }
+              {/* Observaciones ocupa 4 columnas */}
+              <div className="md:col-span-4 space-y-1.5">
+                <label className="text-sm font-bold text-gray-700">Notas / Observaciones</label>
+                <input
+                  type="text"
+                  className="w-full p-3 border border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-200 outline-none"
+                  placeholder="Ej. Entregado por chofer..."
+                  value={formData.observaciones}
+                  onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
 
-        /* Esto elimina el recorte en cualquier div interno que traiga tu componente Table */
-        .custom-scrollbar div, 
-        .custom-scrollbar section {
-          overflow: visible !important;
-        }
-        
-        /* Asegura que las filas no se corten */
-        .custom-scrollbar thead, 
-        .custom-scrollbar tbody,
-        .custom-scrollbar tr {
-           min-width: 100% !important;
-           width: 100% !important;
-        }
-      `}</style>
+          {/* SECCIÓN 2: PRODUCTOS (TABLA GRANDE) */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-sm font-extrabold text-gray-600 uppercase tracking-wide flex items-center gap-2">
+                <Package size={18} /> Inventario a Ingresar
+              </h3>
+              <button
+                type="button"
+                onClick={addProductoRow}
+                className="flex items-center gap-2 bg-purple-100 hover:bg-purple-200 text-purple-700 px-5 py-2 rounded-xl transition-all font-bold text-sm"
+              >
+                <Plus size={16} /> 
+                Agregar Fila
+              </button>
+            </div>
+
+            {formData.detalles.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
+                <Package size={48} className="mb-2 opacity-20" />
+                <p>No hay productos en esta entrada.</p>
+              </div>
+            )}
+
+            {formData.detalles.map((detalle, index) => (
+              <div key={index} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm relative group animate-in slide-in-from-bottom-2 mb-4">
+                
+                <button
+                  type="button"
+                  onClick={() => removeProductoRow(index)}
+                  className="absolute top-4 right-4 text-gray-300 hover:text-red-500 transition-colors"
+                  title="Eliminar fila"
+                >
+                  <Trash2 size={20} />
+                </button>
+
+                {/* --- GRID DE 12 COLUMNAS (ESPACIOSO) --- */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-start">
+                  
+                  {/* FILA 1: CATEGORÍA (3) | PRODUCTO (6) | CLAVE SAT (3) */}
+                  
+                  <div className="md:col-span-3 space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                       <Tag size={12} /> Categoría
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. ALIMENTOS"
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm uppercase focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+                      value={detalle.categoria_producto}
+                      onChange={(e) => handleProductChange(index, "categoria_producto", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-6 space-y-1">
+                    <label className="text-xs font-bold text-purple-700 uppercase flex items-center gap-1">
+                       <Box size={12} /> Producto Específico (Nombre)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. ARROZ BOLSA 1KG"
+                      className="w-full p-2.5 border-2 border-purple-100 rounded-lg text-sm font-bold text-gray-800 uppercase focus:border-purple-500 outline-none transition-all"
+                      value={detalle.nombre_producto}
+                      onChange={(e) => handleProductChange(index, "nombre_producto", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-3 space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                       <Barcode size={12} /> Clave SAT
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. 10101502"
+                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono uppercase focus:bg-white focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+                      value={detalle.clave_sat || ""}
+                      onChange={(e) => handleProductChange(index, "clave_sat", e.target.value)}
+                    />
+                  </div>
+
+                  {/* FILA 2: MODALIDAD (3) | UNIDAD (2) | CANTIDAD (2) | UNITARIO (2) | SUBTOTAL (3) */}
+
+                  <div className="md:col-span-3 space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-1">
+                       <Layers size={12} /> Modalidad
+                    </label>
+                    <input
+                        type="text"
+                        placeholder="Ej. ESPECIE"
+                        className="w-full p-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                        value={detalle.modalidad || ""}
+                        onChange={(e) => handleProductChange(index, "modalidad", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Unidad</label>
+                    <input
+                      type="text"
+                      placeholder="PZA/KG"
+                      className="w-full p-2.5 border border-gray-200 rounded-lg text-sm uppercase focus:ring-2 focus:ring-purple-500 outline-none"
+                      value={detalle.clave_unidad || ""}
+                      onChange={(e) => handleProductChange(index, "clave_unidad", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 space-y-1">
+                    <label className="text-xs font-bold text-purple-700 uppercase flex items-center gap-1">
+                        <Hash size={12} /> Cantidad
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-full p-2.5 bg-purple-50 border border-purple-200 rounded-lg text-sm font-bold text-center focus:ring-2 focus:ring-purple-500 outline-none"
+                      value={detalle.cantidad}
+                      onChange={(e) => handleProductChange(index, "cantidad", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="md:col-span-2 space-y-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase">P. Unitario</label>
+                    <div className="relative">
+                        <span className="absolute left-2 top-2.5 text-gray-400 text-xs">$</span>
+                        <input
+                        type="number"
+                        step="0.01"
+                        className="w-full p-2.5 pl-5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none"
+                        value={detalle.precio_unitario_deducible || 0}
+                        onChange={(e) => handleProductChange(index, "precio_unitario_deducible", e.target.value)}
+                        />
+                    </div>
+                  </div>
+
+                  <div className="md:col-span-3 space-y-1">
+                     <label className="text-xs font-bold text-gray-400 uppercase text-right block">Subtotal</label>
+                     <div className="w-full p-2.5 bg-gray-50 border border-gray-100 rounded-lg flex items-center justify-end gap-1 text-green-700 font-bold text-lg">
+                        <DollarSign size={16} />
+                        {(Number(detalle.cantidad) * Number(detalle.precio_unitario_deducible || 0)).toFixed(2)}
+                     </div>
+                  </div>
+
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-100 flex justify-end gap-3 z-20">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="px-6 py-3 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl shadow-lg transition-transform transform active:scale-95 flex items-center gap-2"
+            >
+              <CheckCircle size={20} />
+              Guardar Entrada
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* --- MODAL 2: VER DETALLES --- */}
+      <Modal 
+          isOpen={isViewModalOpen} 
+          onClose={() => setIsViewModalOpen(false)} 
+          title="Detalles del Donativo"
+          size="extraLarge"
+      >
+         {selectedDonativo && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+               <div>
+                 <p className="text-xs text-gray-500 uppercase font-bold">Donante</p>
+                 <p className="text-lg font-bold text-gray-800">{selectedDonativo.donante?.razon_social}</p>
+               </div>
+               <div className="text-right">
+                 <p className="text-xs text-gray-500 uppercase font-bold">Fecha Recepción</p>
+                 <p className="text-lg font-medium text-purple-700">
+                    {new Date(selectedDonativo.fecha_donativo).toLocaleDateString("es-MX", { year: "numeric", month: "short", day: "numeric" })}
+                 </p>
+               </div>
+            </div>
+
+            <div className="border rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                    <thead className="bg-gray-100 text-gray-600 uppercase text-xs font-bold">
+                        <tr>
+                            <th className="p-3 text-left">Producto</th>
+                            <th className="p-3 text-center">Cant.</th>
+                            <th className="p-3 text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {selectedDonativo.detalles.map((d, i) => (
+                            <tr key={i}>
+                                <td className="p-3">
+                                    <div className="font-bold text-gray-800">{d.nombre_producto}</div>
+                                    <div className="text-xs text-gray-400">{d.clave_sat} • {d.categoria_producto}</div>
+                                </td>
+                                <td className="p-3 text-center font-medium bg-gray-50">{d.cantidad}</td>
+                                <td className="p-3 text-right font-mono text-gray-600">${Number(d.monto_deducible_total).toFixed(2)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                    <tfoot className="bg-purple-50">
+                        <tr>
+                            <td colSpan={2} className="p-3 text-right font-bold text-purple-800 uppercase text-xs">Total General</td>
+                            <td className="p-3 text-right font-bold text-purple-700 text-lg">${Number(selectedDonativo.monto_total_deducible).toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <button onClick={() => setIsViewModalOpen(false)} className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">Cerrar</button>
+          </div>
+         )}
+      </Modal>
     </div>
   );
 };

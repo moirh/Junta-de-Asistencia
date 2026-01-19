@@ -1,264 +1,306 @@
-import React, { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { Table } from "../../components/ui/Table";
-import { Plus, Edit2, Save } from "lucide-react"; 
-import {
-  getDonantes,
+import { Modal } from "../../components/ui/Modal"; 
+// Asegúrate de que la ruta a tus servicios sea correcta:
+import { 
+  getDonantes, 
   createDonante,
-  getDonanteById,
-  updateDonante,
-} from "./services/donativosService";
+  updateDonante, 
+  deleteDonante 
+} from "../../services/donantesService"; 
+import type { Donante } from "../../types"; 
 
-export const DonantesTable: React.FC = () => {
-  const [donantes, setDonantes] = useState<any[]>([]);
-  const [showModal, setShowModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+export default function DonantesTable() {
+  const [donantes, setDonantes] = useState<Donante[]>([]);
+  const [loading, setLoading] = useState(false);
+  
+  // Estado para el Modal
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Estado del Formulario
+  const initialFormState: Donante = {
+    razon_social: "",
+    rfc: "",
+    regimen_fiscal: "",
+    direccion: "",
+    cp: "",
+    contacto: "",
+    email: "",
+    telefono: "",
+    estatus: "Eventual",
+  };
+  const [formData, setFormData] = useState<Donante>(initialFormState);
 
-  const [donanteForm, setDonanteForm] = useState({
-    fecha: "",
-    no_oficio: "",
-    donante: "",
-    municipio: "",
-    descripcion: "",
-    costo_total: "",
-    nota: "",
-  });
-
+  // Cargar datos al iniciar
   useEffect(() => {
     fetchDonantes();
   }, []);
 
   const fetchDonantes = async () => {
     try {
+      setLoading(true);
       const data = await getDonantes();
       setDonantes(data);
-    } catch (err) {
-      console.error("Error cargando donantes:", err);
+    } catch (error) {
+      console.error("Error cargando donantes:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const resetForms = () => {
-    setDonanteForm({
-      fecha: "",
-      no_oficio: "",
-      donante: "",
-      municipio: "",
-      descripcion: "",
-      costo_total: "",
-      nota: "",
-    });
+  // Manejadores del Modal
+  const handleOpenModal = (donante?: Donante) => {
+    if (donante) {
+      setFormData(donante);
+      setIsEditing(true);
+    } else {
+      setFormData(initialFormState);
+      setIsEditing(false);
+    }
+    setIsModalOpen(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setFormData(initialFormState);
+  };
+
+  // Guardar (Crear o Editar)
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const uppercaseForm = Object.keys(donanteForm).reduce((acc: any, key) => {
-        const value = (donanteForm as any)[key];
-        acc[key] = typeof value === "string" ? value.toUpperCase() : value;
-        return acc;
-      }, {});
-
-      await createDonante({
-        ...uppercaseForm,
-        costo_total: uppercaseForm.costo_total
-          ? Number(uppercaseForm.costo_total)
-          : undefined,
-      });
-
-      await fetchDonantes();
-      setShowModal(false);
-      resetForms();
-      alert("✅ Donante creado correctamente");
-    } catch (error: any) {
-      alert(error.response?.data?.message || "❌ Error al crear donante");
+      if (isEditing && formData.id) {
+        await updateDonante(formData.id, formData);
+      } else {
+        await createDonante(formData);
+      }
+      fetchDonantes(); 
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error guardando donante:", error);
+      alert("Hubo un error al guardar. Verifica los campos.");
     }
   };
 
-  const openEditModal = async (id: number) => {
-    try {
-      const data = await getDonanteById(String(id));
-      setDonanteForm({
-        fecha: data.fecha ?? "",
-        no_oficio: data.no_oficio ?? "",
-        donante: data.donante ?? "",
-        municipio: data.municipio ?? "",
-        descripcion: data.descripcion ?? "",
-        costo_total: data.costo_total != null ? String(data.costo_total) : "",
-        nota: data.nota ?? "",
-      });
-
-      setEditId(id);
-      setShowEditModal(true);
-    } catch (err) {
-      console.error("Error al traer donante:", err);
+  // Eliminar
+  const handleDelete = async (id: number) => {
+    if (confirm("¿Estás seguro de eliminar este donante del directorio?")) {
+      try {
+        await deleteDonante(id);
+        fetchDonantes();
+      } catch (error) {
+        console.error("Error eliminando:", error);
+      }
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editId) return alert("ID de edición no definido");
-
-    try {
-      const uppercaseForm = Object.keys(donanteForm).reduce((acc: any, key) => {
-        const value = (donanteForm as any)[key];
-        acc[key] = typeof value === "string" ? value.toUpperCase() : value;
-        return acc;
-      }, {});
-
-      const payload = {
-        ...uppercaseForm,
-        costo_total: uppercaseForm.costo_total
-          ? Number(uppercaseForm.costo_total)
-          : undefined,
-      };
-
-      await updateDonante(String(editId), payload);
-      await fetchDonantes();
-      setShowEditModal(false);
-      setEditId(null);
-      resetForms();
-      alert("✅ Donante actualizado correctamente");
-    } catch (error: any) {
-      alert(error.response?.data?.message || "❌ Error al actualizar donante");
-    }
-  };
-
-  const columns: any[] = [
-    { key: "id_donantes", label: "ID" },
-    { key: "fecha", label: "Fecha" },
-    { key: "no_oficio", label: "No. Oficio" },
-    { key: "donante", label: "Donante" },
-    { key: "municipio", label: "Municipio" },
-    { key: "descripcion", label: "Descripción" },
-    { key: "costo_total", label: "Costo Total" },
-    { key: "nota", label: "Nota" },
-    { key: "acciones", label: "Acciones" },
+  // --- AQUÍ ESTÁ LA SOLUCIÓN AL ERROR ---
+  // Usamos 'as keyof Donante' para asegurarnos que TypeScript reconozca los campos.
+  // IMPORTANTE: Usamos 'id' para la columna de acciones, ya que 'acciones' no existe en la BD.
+  const columns = [
+    { key: "razon_social" as keyof Donante, label: "Razón Social" },
+    { key: "rfc" as keyof Donante, label: "RFC" },
+    { key: "contacto" as keyof Donante, label: "Contacto" },
+    { key: "telefono" as keyof Donante, label: "Teléfono" },
+    { key: "estatus" as keyof Donante, label: "Estatus" },
+    { key: "id" as keyof Donante, label: "Acciones" }, // Usamos ID aquí para evitar el error
   ];
 
-  const renderFormContent = (isEdit: boolean, submitFn: (e: React.FormEvent) => void) => (
-    <form onSubmit={submitFn} className="space-y-5">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {Object.keys(donanteForm).map((key) => (
-          <div key={key} className={key === 'descripcion' || key === 'nota' ? 'md:col-span-2' : ''}>
-            <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wide">
-              {key.replace(/_/g, " ")}
-            </label>
-            <input
-              type={key === "costo_total" ? "number" : key === "fecha" ? "date" : "text"}
-              value={(donanteForm as any)[key]}
-              onChange={(e) =>
-                setDonanteForm({
-                  ...donanteForm,
-                  [key]: key === "costo_total" || key === "fecha"
-                      ? e.target.value
-                      : e.target.value.toUpperCase(),
-                })
-              }
-              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm focus:outline-none focus:border-colorPrimarioJAPEM focus:ring-1 focus:ring-colorPrimarioJAPEM transition-all uppercase placeholder:normal-case"
-              placeholder={`Ingrese ${key.replace(/_/g, " ")}`}
-              required={key === "donante" || key === "no_oficio" || key === "fecha"}
-            />
-          </div>
-        ))}
-      </div>
-
-      <div className="pt-4">
+  return (
+    <div className="p-6 animate-fade-in relative">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Directorio de Donantes</h1>
+          <p className="text-gray-500">Gestiona la información de empresas y particulares</p>
+        </div>
         <button
-          type="submit"
-          className="w-full flex justify-center items-center gap-2 py-3 px-4 bg-gradient-to-r from-colorPrimarioJAPEM to-[#048066] text-white font-bold rounded-xl shadow-lg hover:shadow-colorPrimarioJAPEM/30 hover:-translate-y-0.5 transition-all duration-300 active:scale-95"
+          onClick={() => handleOpenModal()}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all shadow-md hover:shadow-lg"
         >
-          <Save className="w-4 h-4" />
-          {isEdit ? "Guardar Cambios" : "Guardar Registro"}
+          <Plus size={20} />
+          Nuevo Donante
         </button>
       </div>
-    </form>
-  );
 
-  return (
-    <div className="relative">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-          <span className="w-2 h-6 bg-colorPrimarioJAPEM rounded-full"></span>
-          LISTADO DE DONANTES
-        </h2>
-      </div>
-
-      {/* Tabla con scroll horizontal mejorado para consistencia */}
-      <div className="w-full overflow-x-auto pb-4 custom-scrollbar">
-        <div className="min-w-[1200px]">
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100">
+           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mb-4"></div>
+           <p className="text-gray-400 font-medium">Cargando registros...</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <Table
             data={donantes}
             columns={columns}
-            rowsPerPage={5}
+            rowsPerPage={8}
             renderCell={(key, value, row) => {
-              if (key === "acciones") {
+              // Renderizado personalizado de Estatus
+              if (key === "estatus") {
                 return (
-                  <button
-                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-colorTerciarioJAPEM text-colorTerciarioJAPEM text-xs font-bold rounded-lg hover:bg-colorTerciarioJAPEM hover:text-white transition-all duration-300"
-                    onClick={() => openEditModal(row.id_donantes)}
-                  >
-                    <Edit2 className="w-3 h-3" /> Editar
-                  </button>
+                  <span className={`px-2 py-1 rounded-full text-xs font-semibold
+                    ${value === 'Permanente' ? 'bg-green-100 text-green-700' : 
+                      value === 'Eventual' ? 'bg-yellow-100 text-yellow-700' : 
+                      'bg-blue-100 text-blue-700'}`}>
+                    {value}
+                  </span>
                 );
               }
-              return value ?? "";
+              
+              // Renderizado de Botones (Detectamos "id" en lugar de "acciones")
+              if (key === "id") {
+                return (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleOpenModal(row)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition"
+                      title="Editar"
+                    >
+                      <Edit size={18} />
+                    </button>
+                    <button
+                      onClick={() => row.id && handleDelete(row.id)}
+                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                );
+              }
+              return value;
             }}
           />
         </div>
-      </div>
-
-      {/* Botón Flotante */}
-      <button
-        className="fixed bottom-10 right-10 w-14 h-14 bg-gradient-to-r from-colorPrimarioJAPEM to-[#048066] text-white rounded-full shadow-2xl shadow-colorPrimarioJAPEM/40 flex items-center justify-center hover:scale-110 transition-transform duration-300 z-40 group"
-        onClick={() => {
-          resetForms();
-          setShowModal(true);
-        }}
-      >
-        <Plus className="w-8 h-8 group-hover:rotate-90 transition-transform duration-300" />
-      </button>
-
-      {/* MODAL GENÉRICO CON ESTILO GLASS */}
-      {(showModal || showEditModal) && (
-        <div className="fixed inset-0 flex justify-center items-center z-50 bg-black/60 backdrop-blur-sm transition-opacity duration-300">
-          <div className="bg-white p-8 rounded-2xl w-full max-w-2xl relative max-h-[90vh] overflow-y-auto shadow-2xl animate-fade-in-up border border-gray-100">
-            <button
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition-colors"
-              onClick={() => {
-                setShowModal(false);
-                setShowEditModal(false);
-                setEditId(null);
-                resetForms();
-              }}
-            >
-              ✕
-            </button>
-            <h2 className="text-2xl font-bold mb-6 text-colorPrimarioJAPEM border-b pb-2 border-gray-100">
-              {showEditModal ? "EDITAR DONANTE" : "NUEVO DONANTE"}
-            </h2>
-            {renderFormContent(showEditModal, showEditModal ? handleUpdate : handleSubmit)}
-          </div>
-        </div>
       )}
 
-      <style>{`
-        /* Scrollbar personalizada */
-        .custom-scrollbar::-webkit-scrollbar {
-          height: 8px;
-          width: 8px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: #f1f1f1;
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #d1d5db;
-          border-radius: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #9ca3af;
-        }
-      `}</style>
+      {/* MODAL DE FORMULARIO */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        title={isEditing ? "Editar Donante" : "Registrar Nuevo Donante"}
+      >
+        <form onSubmit={handleSave} className="space-y-4">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Razón Social / Nombre *</label>
+              <input
+                type="text"
+                required
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                value={formData.razon_social}
+                onChange={(e) => setFormData({ ...formData, razon_social: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">RFC</label>
+              <input
+                type="text"
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                value={formData.rfc || ""}
+                onChange={(e) => setFormData({ ...formData, rfc: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Régimen Fiscal</label>
+              <input
+                type="text"
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={formData.regimen_fiscal || ""}
+                onChange={(e) => setFormData({ ...formData, regimen_fiscal: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+              <input
+                type="text"
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={formData.cp || ""}
+                onChange={(e) => setFormData({ ...formData, cp: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+            <textarea
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+              rows={2}
+              value={formData.direccion || ""}
+              onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+            />
+          </div>
+
+          <div className="border-t border-gray-200 my-2"></div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Persona de Contacto *</label>
+              <input
+                type="text"
+                required
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none uppercase"
+                value={formData.contacto}
+                onChange={(e) => setFormData({ ...formData, contacto: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estatus *</label>
+              <select
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={formData.estatus}
+                onChange={(e) => setFormData({ ...formData, estatus: e.target.value as any })}
+              >
+                <option value="Eventual">Eventual</option>
+                <option value="Permanente">Permanente</option>
+                <option value="Unica vez">Única vez</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={formData.email || ""}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+              <input
+                type="tel"
+                className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={formData.telefono || ""}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg shadow-md transition"
+            >
+              {isEditing ? "Actualizar Datos" : "Guardar Donante"}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
-};
+}

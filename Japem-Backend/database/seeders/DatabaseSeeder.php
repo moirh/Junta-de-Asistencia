@@ -60,5 +60,6 @@ class DatabaseSeeder extends Seeder
             'date' => '2025-12-01',
             'done' => true
         ]);
+
     }
 }

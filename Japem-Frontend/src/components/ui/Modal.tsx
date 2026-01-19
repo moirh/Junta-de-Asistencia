@@ -6,31 +6,39 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: ReactNode;
+  // Agregamos la propiedad 'size' opcional
+  size?: "normal" | "large" | "extraLarge";
 }
 
-export const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children }) => {
+export const Modal: FC<ModalProps> = ({ isOpen, onClose, title, children, size = "normal" }) => {
   if (!isOpen) return null;
 
+  // Mapa de tamaños: Aquí definimos qué tan ancho es cada opción
+  const widthClasses = {
+    normal: "max-w-md",       // Pequeño (Para confirmaciones, mensajes simples)
+    large: "max-w-2xl",       // Mediano
+    extraLarge: "max-w-7xl",  // ¡GIGANTE! (Perfecto para tu tabla de productos)
+  };
+
   return (
-    // CAMBIO AQUÍ: 
-    // 1. 'bg-black/30' en lugar de 'bg-opacity-50' (más suave)
-    // 2. 'backdrop-blur-md' para el efecto difuminado
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-md p-4 transition-all">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 transition-all">
       
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-fade-in border border-gray-100">
+      {/* Usamos 'widthClasses[size]' en lugar de 'max-w-md' fijo */}
+      <div className={`bg-white rounded-2xl shadow-2xl w-full ${widthClasses[size]} max-h-[90vh] flex flex-col overflow-hidden animate-fade-in border border-gray-100`}>
+        
         {/* Encabezado */}
-        <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-white">
-          <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
+        <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-white shrink-0">
+          <h3 className="text-xl font-bold text-gray-800">{title}</h3>
           <button 
             onClick={onClose} 
-            className="p-1 rounded-full hover:bg-gray-100 text-gray-500 hover:text-red-500 transition"
+            className="p-2 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
         
-        {/* Contenido */}
-        <div className="p-6">
+        {/* Contenido (Con scroll si es muy alto) */}
+        <div className="p-6 overflow-y-auto custom-scrollbar">
           {children}
         </div>
       </div>

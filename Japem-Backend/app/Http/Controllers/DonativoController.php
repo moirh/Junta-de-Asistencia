@@ -3,93 +3,66 @@
 namespace App\Http\Controllers;
 
 use App\Models\Donativo;
+use App\Models\Inventario; // Asegúrate de que este sea el modelo correcto
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DonativoController extends Controller
 {
-    // GET: Listar todos
+    // --- ESTA ES LA FUNCIÓN QUE TE FALTABA ---
     public function index()
     {
-        return Donativo::orderBy('id', 'asc')->get();
+        // Traemos la relación 'donante' y 'detalles' para la tabla
+        return Donativo::with(['donante', 'detalles'])->orderBy('fecha_donativo', 'desc')->get();
     }
+    // ------------------------------------------
 
-    // GET: Ver uno solo
-    public function show($id)
-    {
-        $donativo = Donativo::find($id);
-
-        if (!$donativo) {
-            return response()->json(['error' => 'Donativo no encontrado'], 404);
-        }
-
-        return response()->json($donativo);
-    }
-
-    // POST: Crear
     public function store(Request $request)
     {
-        // 1. Validaciones
+        // 1. Validación básica
         $request->validate([
-            'id_japem' => 'required|string|max:255|unique:donativos,id_japem',
-            'nombre' => 'required|string|max:255',
-            // Opcionales pero recomendados para seguridad:
-            'necesidad_pri' => 'nullable|string',
-            'necesidad_sec' => 'nullable|string',
-            'necesidad_com' => 'nullable|string',
+            'donante_id' => 'required|exists:donantes,id',
+            'fecha_donativo' => 'required|date',
+            'detalles' => 'required|array|min:1'
         ]);
 
-        // 2. Preparar datos
-        $data = $request->all();
+        try {
+            return DB::transaction(function () use ($request) {
+                // 2. Crear Cabecera
+                $donativo = Donativo::create([
+                    'donante_id' => $request->donante_id,
+                    'fecha_donativo' => $request->fecha_donativo,
+                    'monto_total_deducible' => $request->monto_total_deducible ?? 0,
+                    'observaciones' => $request->observaciones,
+                ]);
 
-        // 3. Convertir booleanos explícitamente
-        $data['certificacion'] = $request->boolean('certificacion');
-        $data['candidato'] = $request->boolean('candidato');
-        $data['donataria_aut'] = $request->boolean('donataria_aut');
-        $data['padron_ben'] = $request->boolean('padron_ben');
+                // 3. Crear Detalles (Productos / Inventario)
+                $productosData = [];
+                foreach ($request->detalles as $prod) {
+                    $productosData[] = [
+                        'categoria_producto' => $prod['categoria_producto'] ?? 'GENERAL',
+                        'nombre_producto' => $prod['nombre_producto'] ?? 'SIN NOMBRE',
+                        'clave_sat' => $prod['clave_sat'] ?? null,
+                        'modalidad' => $prod['modalidad'] ?? null,
+                        'clave_unidad' => $prod['clave_unidad'] ?? null,
+                        'cantidad' => (int) ($prod['cantidad'] ?? 1),
+                        'precio_venta_unitario' => (float) ($prod['precio_venta_unitario'] ?? 0),
+                        'precio_venta_total' => (float) ($prod['precio_venta_total'] ?? 0),
+                        'precio_unitario_deducible' => (float) ($prod['precio_unitario_deducible'] ?? 0),
+                        'monto_deducible_total' => (float) ($prod['monto_deducible_total'] ?? 0),
+                    ];
+                }
+                
+                // Guardar usando la relación definida en Donativo.php
+                $donativo->detalles()->createMany($productosData);
 
-        // 4. Crear registro
-        $donativo = Donativo::create($data);
+                return response()->json($donativo->load('detalles'), 201);
+            });
 
-        return response()->json([
-            'message' => 'Donativo creado correctamente',
-            'data' => $donativo
-        ], 201);
-    }
-
-    // PUT: Actualizar
-    public function update(Request $request, $id)
-    {
-        $donativo = Donativo::find($id);
-
-        if (!$donativo) {
-            return response()->json(['message' => 'Donativo no encontrado'], 404);
+        } catch (\Exception $e) {
+            Log::error('Error guardando donativo: ' . $e->getMessage());
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        // 1. Validaciones para Update (Importante: ignorar el ID actual en 'unique')
-        $request->validate([
-            'id_japem' => 'sometimes|required|string|max:255|unique:donativos,id_japem,' . $id,
-            'nombre' => 'sometimes|required|string|max:255',
-        ]);
-
-        // 2. Preparar datos
-        $data = $request->all();
-
-        // 3. Convertir booleanos solo si vienen en la petición
-        if($request->has('certificacion')) 
-            $data['certificacion'] = $request->boolean('certificacion');
-        if($request->has('candidato')) 
-            $data['candidato'] = $request->boolean('candidato');
-        if($request->has('donataria_aut')) 
-            $data['donataria_aut'] = $request->boolean('donataria_aut');
-        if($request->has('padron_ben')) 
-            $data['padron_ben'] = $request->boolean('padron_ben');
-
-        // 4. Actualizar
-        $donativo->update($data);
-
-        return response()->json([
-            'message' => 'Donativo actualizado correctamente',
-            'data' => $donativo
-        ]);
     }
 }

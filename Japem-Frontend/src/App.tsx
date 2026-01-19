@@ -8,37 +8,29 @@ import { Header } from "./components/layout/Header";
 import Home from "./pages/Home";
 import { Donativos } from "./pages/Donativos";
 import { Login } from "./pages/Login";
-import { PrivateRoute } from "./components/layout/PrivateRoute";
+import { IapTable } from "./pages/Iap/IapTable";
+import  PrivateRoute  from "./components/layout/PrivateRoute";
 
-// Componente auxiliar para controlar qué se muestra según la ruta
+// Componente auxiliar para el Layout
 const Layout = () => {
   const location = useLocation();
-
-  // Definimos las rutas que tienen su propio diseño de Header o no lo necesitan
-  // "/login": No lleva header.
-  // "/": La Home ahora tiene su propio header integrado para el efecto transparente.
   const hiddenHeaderPaths = ["/login", "/"];
-  
   const shouldHideGlobalLayout = hiddenHeaderPaths.includes(location.pathname);
 
   return (
     <>
-      {/* Solo mostramos el Header global si NO estamos en Login ni en Home */}
       {!shouldHideGlobalLayout && <Header />}
-
-      {/* Si estamos en Login o Home, quitamos el padding superior (pt-20) 
-         para que el contenido o el slider lleguen hasta arriba.
-      */}
+      
       <div className={`${shouldHideGlobalLayout ? "" : "pt-20"} min-h-screen bg-gray-100`}>
         <Routes>
-          {/* Rutas Públicas */}
+          {/* RUTA PÚBLICA */}
           <Route path="/login" element={<Login />} />
 
-          {/* Rutas Privadas */}
+          {/* RUTAS PRIVADAS (Protegidas por PrivateRoute) */}
           <Route element={<PrivateRoute />}>
             <Route path="/" element={<Home />} />
             <Route path="/donativos" element={<Donativos />} />
-            {/* Agrega aquí más rutas protegidas si es necesario */}
+            <Route path="/iaps" element={<IapTable />} />
           </Route>
         </Routes>
       </div>

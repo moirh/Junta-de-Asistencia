@@ -10,30 +10,28 @@ class Donante extends Model
     use HasFactory;
 
     protected $table = 'donantes';
-    protected $primaryKey = 'id_donantes'; // PK personalizada
 
-    public $incrementing = true;
-    protected $keyType = 'int';
-
+    // Ahora usamos la estructura estándar 'id', no 'id_donantes'
     protected $fillable = [
-        'fecha',
-        'no_oficio',
-        'donante',
-        'municipio',
-        'descripcion',
-        'costo_total',
-        'nota',
+        'razon_social',
+        'rfc',
+        'regimen_fiscal',
+        'direccion',
+        'cp',
+        'contacto',
+        'email',
+        'telefono',
+        'estatus',
     ];
 
-    /*
-     * ============================
-     * MUTATORS — MAYÚSCULAS
-     * ============================
-     */
-    public function setNoOficioAttribute($value) { $this->attributes['no_oficio'] = mb_strtoupper($value, 'UTF-8'); }
-    public function setDonanteAttribute($value) { $this->attributes['donante'] = mb_strtoupper($value, 'UTF-8'); }
-    public function setMunicipioAttribute($value) { $this->attributes['municipio'] = mb_strtoupper($value, 'UTF-8'); }
-    public function setDescripcionAttribute($value) { $this->attributes['descripcion'] = mb_strtoupper($value, 'UTF-8'); }
-    public function setNotaAttribute($value) { $this->attributes['nota'] = mb_strtoupper($value, 'UTF-8'); }
+    // Mutadores para guardar siempre en mayúsculas
+    public function setRazonSocialAttribute($value) { $this->attributes['razon_social'] = mb_strtoupper($value, 'UTF-8'); }
+    public function setRfcAttribute($value) { $this->attributes['rfc'] = mb_strtoupper($value, 'UTF-8'); }
+    public function setDireccionAttribute($value) { $this->attributes['direccion'] = mb_strtoupper($value, 'UTF-8'); }
+    public function setContactoAttribute($value) { $this->attributes['contacto'] = mb_strtoupper($value, 'UTF-8'); }
 
+    public function donativos()
+    {
+        return $this->hasMany(Donativo::class, 'donante_id');
+    }
 }
