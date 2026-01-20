@@ -51,6 +51,8 @@ class DonativoController extends Controller
                         'precio_venta_total' => (float) ($prod['precio_venta_total'] ?? 0),
                         'precio_unitario_deducible' => (float) ($prod['precio_unitario_deducible'] ?? 0),
                         'monto_deducible_total' => (float) ($prod['monto_deducible_total'] ?? 0),
+                        'estado' => $prod['estado'] ?? 'Nuevo',
+                        'fecha_caducidad' => $prod['fecha_caducidad'] ?? null,
                     ];
                 }
                 

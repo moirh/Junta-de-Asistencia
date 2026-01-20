@@ -11,17 +11,17 @@ export const Donativos = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 font-inter animate-fade-in-up">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full mx-auto">
         
         {/* Encabezado */}
-        <div className="mb-8">
+        <div className="mb-8 text-center">
           <h1 className="text-3xl font-extrabold text-colorPrimarioJAPEM tracking-tight">
             Gestión de Recursos
           </h1>
         </div>
 
         {/* Tabs de Navegación (4 Botones) */}
-        <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 w-fit mb-8">
+        <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 w-fit mb-8 mx-auto">
           
           <button onClick={() => setActiveTab("donantes")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "donantes" ? "bg-colorPrimarioJAPEM text-black shadow" : "text-gray-500 hover:bg-gray-50"}`}>
             <Users size={16} /> Donantes

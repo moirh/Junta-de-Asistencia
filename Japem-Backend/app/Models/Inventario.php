@@ -24,6 +24,8 @@ class Inventario extends Model
         'precio_venta_total',
         'precio_unitario_deducible',
         'monto_deducible_total',
+        'estado',
+        'fecha_caducidad',
     ];
 
     public function donativo()

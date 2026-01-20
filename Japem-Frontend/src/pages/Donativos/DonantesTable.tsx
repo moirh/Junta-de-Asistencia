@@ -29,7 +29,7 @@ export default function DonantesTable() {
     contacto: "",
     email: "",
     telefono: "",
-    estatus: "Eventual",
+    estatus: "Seleccionar",
   };
   const [formData, setFormData] = useState<Donante>(initialFormState);
 
@@ -103,25 +103,37 @@ export default function DonantesTable() {
     { key: "razon_social" as keyof Donante, label: "Razón Social" },
     { key: "rfc" as keyof Donante, label: "RFC" },
     { key: "contacto" as keyof Donante, label: "Contacto" },
-    { key: "telefono" as keyof Donante, label: "Teléfono" },
+    { key: "direccion" as keyof Donante, label: "Dirección" },
+    { key: "email" as keyof Donante, label: "Email" },
+    { key: "telefono" as keyof Donante, label: "Teléfono Celular" },
+    { key: "telefono_secundario" as keyof Donante, label: "Teléfono Oficina" },
     { key: "estatus" as keyof Donante, label: "Estatus" },
     { key: "id" as keyof Donante, label: "Acciones" }, // Usamos ID aquí para evitar el error
   ];
 
   return (
-    <div className="p-6 animate-fade-in relative">
-      <div className="flex justify-between items-center mb-6">
-        <div>
+    <div className="p-6 animate-fade-in relative w-full">
+      {/* --- HEADER CORREGIDO --- */}
+      {/* 'relative' permite que el botón se posicione absolutamente respecto a este div */}
+      <div className="relative flex items-center justify-center mb-8">
+        
+        {/* 1. TÍTULO EN EL CENTRO */}
+        <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-800">Directorio de Donantes</h1>
-          <p className="text-gray-500">Gestiona la información de empresas y particulares</p>
+          <p className="text-gray-500 mt-1">Gestiona la información de empresas y particulares</p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all shadow-md hover:shadow-lg"
-        >
-          <Plus size={20} />
-          Nuevo Donante
-        </button>
+
+        {/* 2. BOTÓN PEGADO A LA DERECHA */}
+        <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md hover:shadow-lg font-bold transform active:scale-95"
+          >
+            <Plus size={20} />
+            <span className="hidden sm:inline">Nuevo Donante</span>
+          </button>
+        </div>
+
       </div>
 
       {loading ? (
@@ -180,6 +192,7 @@ export default function DonantesTable() {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         title={isEditing ? "Editar Donante" : "Registrar Nuevo Donante"}
+        size="extraLarge"
       >
         <form onSubmit={handleSave} className="space-y-4">
           
@@ -208,12 +221,15 @@ export default function DonantesTable() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Régimen Fiscal</label>
-              <input
-                type="text"
+              <select
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                 value={formData.regimen_fiscal || ""}
                 onChange={(e) => setFormData({ ...formData, regimen_fiscal: e.target.value })}
-              />
+              >
+                <option value={0}>-- Seleccionar --</option>
+                <option value="Persona Moral">Persona Moral </option>
+                <option value="Persona Física">Persona Física</option>
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
@@ -256,8 +272,9 @@ export default function DonantesTable() {
                 value={formData.estatus}
                 onChange={(e) => setFormData({ ...formData, estatus: e.target.value as any })}
               >
-                <option value="Eventual">Eventual</option>
+                <option value={0}>-- Seleccionar --</option>
                 <option value="Permanente">Permanente</option>
+                <option value="Eventual">Eventual</option>
                 <option value="Unica vez">Única vez</option>
               </select>
             </div>
@@ -274,7 +291,7 @@ export default function DonantesTable() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono Celular</label>
               <input
                 type="tel"
                 className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
@@ -282,6 +299,19 @@ export default function DonantesTable() {
                 onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
               />
             </div>
+          </div>
+
+          {/* CAMPO: TELÉFONO SECUNDARIO / CELULAR */}
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">
+              Teléfono Oficina
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              value={formData.telefono_secundario || ""}
+              onChange={(e) => setFormData({ ...formData, telefono_secundario: e.target.value })}
+            />
           </div>
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t">

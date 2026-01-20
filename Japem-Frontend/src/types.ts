@@ -8,7 +8,8 @@ export interface Donante {
     contacto: string;
     email?: string;
     telefono?: string;
-    estatus: 'Permanente' | 'Eventual' | 'Unica vez';
+    telefono_secundario?: string;
+    estatus: 'Permanente' | 'Eventual' | 'Unica vez' | 'Seleccionar';
 }
 
 export interface DetalleDonativo {
@@ -16,6 +17,8 @@ export interface DetalleDonativo {
     categoria_producto: string;
     nombre_producto: string;
     clave_sat?: string;
+    estado?: string;
+    fecha_caducidad?: string;
     modalidad?: string;
     clave_unidad?: string;
     cantidad: number;

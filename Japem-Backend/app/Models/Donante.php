@@ -21,6 +21,7 @@ class Donante extends Model
         'contacto',
         'email',
         'telefono',
+        'telefono_secundario',
         'estatus',
     ];
 

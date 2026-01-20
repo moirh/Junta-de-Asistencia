@@ -66,7 +66,7 @@ export const Login = () => {
             {/* Logo y Encabezado */}
             <div className="text-center mb-10 animate-fade-in-up">
               <img
-                src="/Logo.png"
+                src="/LogoVerde.jpg"
                 alt="Logo JAPEM"
                 className="h-20 mx-auto mb-4 object-contain drop-shadow-md hover:scale-105 transition-transform"
               />

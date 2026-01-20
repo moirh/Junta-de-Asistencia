@@ -40,10 +40,10 @@ export const Header: FC = () => {
     <header className="fixed top-0 left-0 w-full bg-white z-50 shadow-sm">
       <div className="w-full flex justify-between items-center px-4 py-3">
         <div className="flex items-center space-x-2 ml-0">
-          <img src="/Logo.png" alt="Logo" className="h-8 w-8 object-contain" />
-          <h1 className="text-gray-700 font-medium text-sm tracking-wide">
+          <img src="/LogoVerde.jpg" alt="Logo" className="h-12 w-36 object-contain" />
+          {/*<h1 className="text-gray-700 font-medium text-sm tracking-wide">
             Junta de Asistencia Privada del Estado de México
-          </h1>
+          </h1>*/}
         </div>
 
         <nav className="flex space-x-6 text-sm">
