@@ -61,4 +61,5 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     Route::apiResource('acuerdos', AcuerdoController::class);
     Route::apiResource('recordatorios', RecordatorioController::class);
+    
 });

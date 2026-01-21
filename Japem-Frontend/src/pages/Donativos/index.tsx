@@ -3,11 +3,12 @@ import DonantesTable from "./DonantesTable";
 import { DonativosTable } from "./DonativosTable";
 import { IapTable } from "../Iap/IapTable"; 
 import { EntregasView } from "./EntregasView"; // <--- Importamos la nueva vista
-import { HandHeart, Users, Building2, Truck } from "lucide-react";
-
+import { InventarioTable } from "./InventarioTable"; 
+import { Entrega } from "./Entrega";
+import { HandHeart, Users, Building2, Package, Share2, Truck } from "lucide-react";
 export const Donativos = () => {
   // Ahora tenemos 4 tabs
-  const [activeTab, setActiveTab] = useState<"donantes" | "donativos" | "iaps" | "distribucion">("donantes");
+  const [activeTab, setActiveTab] = useState<"donantes" | "donativos" | "iaps" | "distribucion" | "entrega" | "inventario">("donantes");
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 font-inter animate-fade-in-up">
@@ -37,7 +38,15 @@ export const Donativos = () => {
 
           {/* BOTÓN NUEVO: DISTRIBUCIÓN */}
           <button onClick={() => setActiveTab("distribucion")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "distribucion" ? "bg-purple-600 text-white shadow" : "text-gray-500 hover:bg-gray-50"}`}>
-            <Truck size={16} /> Distribución
+            <Share2 size={16} /> Distribución
+          </button>
+
+          <button onClick={() => setActiveTab("entrega")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "entrega" ? "bg-purple-600 text-white shadow" : "text-gray-500 hover:bg-gray-50"}`}>
+            <Truck size={16} /> Entrega
+          </button>
+
+          <button onClick={() => setActiveTab("inventario")} className={`flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === "inventario" ? "bg-purple-600 text-white shadow" : "text-gray-500 hover:bg-gray-50"}`}>
+            <Package size={16} /> Inventario
           </button>
 
         </div>
@@ -47,7 +56,9 @@ export const Donativos = () => {
           {activeTab === "donantes" && <DonantesTable />}
           {activeTab === "donativos" && <DonativosTable />}
           {activeTab === "iaps" && <IapTable />}
-          {activeTab === "distribucion" && <EntregasView />} {/* <--- Nueva vista aquí */}
+          {activeTab === "distribucion" && <EntregasView />} 
+          {activeTab === "entrega" && <Entrega />}
+          {activeTab === "inventario" && <InventarioTable />}
         </div>
         
       </div>
