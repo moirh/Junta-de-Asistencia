@@ -2,29 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\DB;
+use App\Models\Inventario;
+use Illuminate\Http\Request;
+// No necesitas 'use DB' si usamos el Modelo directamente
 
 class InventarioController extends Controller
 {
     public function index()
     {
-        // CORRECCIÓN: Consultamos directamente la tabla real 'inventarios'
-        // Como 'EntregaController' ya descuenta el stock al hacer salidas, 
-        // la columna 'cantidad' representa el STOCK ACTUAL REAL.
+        // Traemos todos los lotes que tengan existencias (cantidad > 0).
+        // Los ordenamos por fecha de creación (created_at) ascendente para respetar el FIFO.
+        // Al usar el Modelo 'Inventario', Laravel calculará automáticamente
+        // el 'semaforo_rotacion' y 'dias_en_almacen' que configuramos antes.
         
-        $inventario = DB::table('inventarios')
-            ->select(
-                'nombre_producto',
-                'categoria_producto',
-                'clave_unidad',
-                DB::raw('SUM(cantidad) as stock_actual'), // Sumamos lo que hay vivo
-                DB::raw('COUNT(*) as total_lotes')       // Cuántos registros forman ese stock
-            )
-            ->where('cantidad', '>', 0) // Solo traemos productos con existencia
-            ->groupBy('nombre_producto', 'categoria_producto', 'clave_unidad')
-            ->orderBy('nombre_producto')
-            ->get();
-
-        return response()->json($inventario);
+        return Inventario::with('donativo')
+        ->where('cantidad', '>', 0)
+        ->orderBy('created_at', 'asc')
+        ->get();
     }
 }

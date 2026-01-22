@@ -12,18 +12,22 @@ const getAuthConfig = () => {
   };
 };
 
-// --- ESTO ES LO QUE TE FALTA ---
+// DEFINICIÓN DE TIPO (Esto evita los errores de "Property does not exist")
 export interface ItemInventario {
+  id: number;
   nombre_producto: string;
   categoria_producto: string;
-  clave_unidad: string;
-  total_entradas: number;
-  total_salidas: number;
-  stock_actual: number;
+  cantidad: number;      // Asegúrate que tu BD devuelve 'cantidad'
+  stock_actual?: number; // O 'stock_actual', soportamos ambos
+  unidad_medida: string;
 }
-// -------------------------------
 
 export const getInventario = async () => {
-  const response = await axios.get<ItemInventario[]>(`${API_URL}/inventario`, getAuthConfig());
-  return response.data;
+  try {
+    const response = await axios.get<ItemInventario[]>(`${API_URL}/inventario`, getAuthConfig());
+    return response.data;
+  } catch (error) {
+    console.error("Error al obtener inventario:", error);
+    return [];
+  }
 };

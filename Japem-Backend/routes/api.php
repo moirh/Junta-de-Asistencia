@@ -2,64 +2,69 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-// Controladores Existentes
 use App\Http\Controllers\DonanteController;
 use App\Http\Controllers\DonativoController;
 use App\Http\Controllers\AcuerdoController;
 use App\Http\Controllers\RecordatorioController;
-use App\Http\Controllers\CatalogoController;
-// Nuevos Controladores (Importantes para la reestructuración)
-use App\Http\Controllers\IapController;        // Maneja IAPs y el Algoritmo de Match
-use App\Http\Controllers\EntregaController;    // Maneja las Salidas
-use App\Http\Controllers\InventarioController; // Maneja el cálculo de stock
+use App\Http\Controllers\IapController;
+use App\Http\Controllers\EntregaController;
+use App\Http\Controllers\DistribucionController;
+use App\Http\Controllers\InventarioController;
 
 // --- Rutas Públicas ---
 Route::post('/login', [AuthController::class, 'login']);
 
 // --- Rutas Protegidas (Requieren Token) ---
 Route::middleware('auth:sanctum')->group(function () {
-    
+
     Route::post('/logout', [AuthController::class, 'logout']);
 
     // ==========================================
     // 1. MÓDULO DE DONANTES (DIRECTORIO)
     // ==========================================
-    // Guarda: Razón social, RFC, Dirección, Estatus, etc.
     Route::apiResource('donantes', DonanteController::class);
 
     // ==========================================
     // 2. MÓDULO DE DONATIVOS (ENTRADAS)
     // ==========================================
-    // Guarda: Fecha, Referencia al Donante y Productos (Detalles)
     Route::apiResource('donativos', DonativoController::class);
 
     // ==========================================
     // 3. MÓDULO DE IAPs (BENEFICIARIOS Y MATCH)
     // ==========================================
-    // Ruta personalizada para el ALGORITMO:
-    // Se coloca ANTES del apiResource para evitar conflictos de ID.
-    // Ejemplo de uso: GET /api/iaps/sugerencias?producto=Arroz
     Route::get('iaps/sugerencias', [IapController::class, 'sugerirIaps']);
-    
-    // CRUD normal de IAPs (Crear, Editar, Borrar instituciones)
     Route::apiResource('iaps', IapController::class);
 
     // ==========================================
-    // 4. MÓDULO DE ENTREGAS (SALIDAS)
+    // 4. MÓDULO DE ENTREGAS (SALIDAS Y CONTROL)
     // ==========================================
-    // Registra la salida de productos hacia una IAP
+    
+    // Ruta para procesar la entrega desde el Modal
+    Route::post('/entregas/confirmar', [EntregaController::class, 'procesarEntrega']);
+    
+    
+    // Rutas de consulta específicas
+    Route::get('/entregas/historial', [EntregaController::class, 'historial']); // Lo ya entregado
+    Route::get('/entregas/pendientes', [EntregaController::class, 'pendientes']); // Lo pendiente por entregar
+
+    // API Resource estándar (si lo usas para CRUD completo)
     Route::apiResource('entregas', EntregaController::class);
 
     // ==========================================
-    // 5. MÓDULO DE INVENTARIO
+    // 5. MÓDULO DE INVENTARIO Y DISTRIBUCIÓN
     // ==========================================
-    // Solo lectura: Calcula Entradas - Salidas
     Route::get('inventario', [InventarioController::class, 'index']);
+    Route::post('/distribucion', [DistribucionController::class, 'store']);
+
+    // *** CORRECCIÓN IMPORTANTE AQUÍ ***
+    // Redirigimos la ruta antigua que usa tu Frontend hacia la función NUEVA y corregida ('pendientes')
+    // Esto hará que aparezcan los registros antiguos (1, 2, 3) y el estatus correcto.
+    Route::get('/distribucion/historial', [EntregaController::class, 'pendientes']);
+
 
     // ==========================================
-    // OTROS MÓDULOS (TU CÓDIGO EXISTENTE)
+    // OTROS MÓDULOS
     // ==========================================
     Route::apiResource('acuerdos', AcuerdoController::class);
     Route::apiResource('recordatorios', RecordatorioController::class);
-    
 });

@@ -1,37 +1,50 @@
 import { useState, useEffect } from "react";
-import { Package, Calendar, Filter, Search } from "lucide-react";
+import { Package, Search, Filter, AlertTriangle, Flame, Leaf, Calendar } from "lucide-react";
 import { Table } from "../../components/ui/Table";
-// Reutilizamos el servicio que YA tienes
-import { getDonativos } from "../../services/donativosService";
-import type { Donativo, DetalleDonativo } from "../../types";
+import axios from "axios"; 
+
+const API_URL = "http://127.0.0.1:8000/api";
+
+// 1. INTERFACE CORREGIDA (Coincide con la Base de Datos)
+interface InventarioItem {
+  id: number;
+  nombre_producto: string;
+  categoria_producto: string;
+  cantidad: number;        // Asegúrate que tu BD tenga esta columna
+  clave_unidad: string;
+  fecha_caducidad?: string;
+  
+  // CORRECCIÓN: Usamos 'estatus_producto' en lugar de 'estado'
+  estado: string; 
+  clave_sat?: string;
+  
+  // Campos virtuales (Semáforo)
+  dias_en_almacen: number;
+  semaforo_rotacion: 'fresco' | 'atencion' | 'critico'; 
+}
 
 export const InventarioTable = () => {
-  const [productos, setProductos] = useState<DetalleDonativo[]>([]);
+  const [productos, setProductos] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState("Todas");
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    cargarInventarioDesdeEntradas();
+    cargarInventario();
   }, []);
 
-  const cargarInventarioDesdeEntradas = async () => {
+  const cargarInventario = async () => {
     try {
       setLoading(true);
-      // 1. Usamos el servicio existente
-      const donativos: Donativo[] = await getDonativos();
-      
-      // 2. "Aplanamos" la lista: Sacamos los productos de cada donativo
-      // Si donativos es null/undefined, usamos array vacío
-      const listaProductos = (Array.isArray(donativos) ? donativos : []).flatMap(d => 
-        // A cada producto le pegamos la fecha de su donativo (útil para saber cuándo entró)
-        d.detalles.map(item => ({
-          ...item,
-          fecha_ingreso: d.fecha_donativo 
-        }))
-      );
-
-      setProductos(listaProductos);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/inventario`, {
+          headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json'
+          }
+      });
+      console.log("Datos recibidos del backend:", response.data); // <--- DEBUG: Mira la consola del navegador
+      setProductos(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error cargando inventario:", error);
     } finally {
@@ -39,23 +52,19 @@ export const InventarioTable = () => {
     }
   };
 
-  // Filtros combinados (Búsqueda + Categoría)
+  // Filtros
   const productosFiltrados = productos.filter(p => {
     const cumpleCategoria = filtroCategoria === "Todas" ? true : p.categoria_producto === filtroCategoria;
     const cumpleBusqueda = 
       p.nombre_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.clave_sat && p.clave_sat.includes(searchTerm));
-    
     return cumpleCategoria && cumpleBusqueda;
   });
 
-  // Semáforo de Caducidad
   const getCaducidadStatus = (fecha?: string) => {
     if (!fecha) return { color: "bg-gray-100 text-gray-600", label: "NO APLICA" };
-    
     const hoy = new Date();
     const caducidad = new Date(fecha);
-    // Diferencia en días
     const diferenciaDias = Math.ceil((caducidad.getTime() - hoy.getTime()) / (1000 * 3600 * 24));
 
     if (diferenciaDias < 0) return { color: "bg-red-100 text-red-700 font-bold border border-red-200", label: "VENCIDO" };
@@ -63,52 +72,46 @@ export const InventarioTable = () => {
     return { color: "bg-green-100 text-green-700 border border-green-200", label: "VIGENTE" };
   };
 
+  // 2. COLUMNAS CORREGIDAS
   const columns = [
-    { key: "categoria_producto" as keyof DetalleDonativo, label: "Categoría" },
-    { key: "nombre_producto" as keyof DetalleDonativo, label: "Producto" },
-    { key: "cantidad" as keyof DetalleDonativo, label: "Stock" },
-    { key: "fecha_caducidad" as keyof DetalleDonativo, label: "Caducidad" },
-    { key: "estado" as keyof DetalleDonativo, label: "Condición" },
+    { key: "categoria_producto" as keyof InventarioItem, label: "Categoría" },
+    { key: "nombre_producto" as keyof InventarioItem, label: "Producto" },
+    { key: "cantidad" as keyof InventarioItem, label: "Stock" },
+    { key: "semaforo_rotacion" as keyof InventarioItem, label: "Estatus" },
+    { key: "fecha_caducidad" as keyof InventarioItem, label: "Caducidad" },
+    // --- CORRECCIÓN 2: Usamos la llave 'estado' ---
+    { key: "estado" as keyof InventarioItem, label: "Condición" },
   ];
 
   return (
     <div className="animate-fade-in w-full">
-      {/* Header y Filtros */}
+      {/* ... (Header y Filtros igual que antes) ... */}
       <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
         <div>
            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
              <Package className="text-purple-600" /> Inventario General
            </h2>
-           <p className="text-gray-500 text-sm">Visualiza los productos ingresados en el sistema.</p>
+           <p className="text-gray-500 text-sm">Monitoreo de stock y rotación de productos.</p>
         </div>
-        
         <div className="flex gap-2 w-full md:w-auto">
-            {/* Buscador Rápido */}
             <div className="relative flex-1 md:w-64">
                 <input 
-                    type="text" 
-                    placeholder="Buscar producto o clave..." 
+                    type="text" placeholder="Buscar producto..." 
                     className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-100 outline-none"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
             </div>
-
-            {/* Filtro Categoría */}
             <div className="flex items-center gap-2 bg-white px-2 py-1 border border-gray-200 rounded-xl shadow-sm">
                 <Filter size={16} className="text-purple-500 ml-1" />
                 <select 
                     className="bg-transparent outline-none text-sm text-gray-700 cursor-pointer font-medium py-1"
-                    value={filtroCategoria}
-                    onChange={(e) => setFiltroCategoria(e.target.value)}
+                    value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}
                 >
                     <option value="Todas">Todas</option>
                     <option value="Alimentos">Alimentos</option>
                     <option value="Medicamentos">Medicamentos</option>
                     <option value="Ropa">Ropa</option>
-                    <option value="Juguetes">Juguetes</option>
-                    <option value="Mantenimiento">Mantenimiento</option>
                     <option value="Otros">Otros</option>
                 </select>
             </div>
@@ -127,25 +130,34 @@ export const InventarioTable = () => {
               data={productosFiltrados}
               columns={columns}
               rowsPerPage={10}
-              renderCell={(key, value, row) => {
+             renderCell={(key, value, row) => {
                 
-                if (key === "categoria_producto") {
-                    return <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{value}</span>;
-                }
-
-                if (key === "nombre_producto") {
+                // RENDER: SEMÁFORO (Con corrección de decimales)
+                if (key === "semaforo_rotacion") {
+                    
+                    if (value === 'critico') return (
+                        <div className="flex flex-col items-start">
+                          <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold text-[10px] border border-red-200 flex items-center gap-1"><Flame size={10} /> URGENTE</span>
+                        </div>
+                    );
+                    if (value === 'atencion') return (
+                        <div className="flex flex-col items-start">
+                          <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold text-[10px] border border-yellow-200 flex items-center gap-1"><AlertTriangle size={10} /> LENTO</span>
+                        </div>
+                    );
                     return (
-                        <div>
-                            <div className="font-bold text-gray-800 text-sm">{value}</div>
-                            {row.clave_sat && <div className="text-[10px] text-gray-400 font-mono">SAT: {row.clave_sat}</div>}
+                        <div className="flex flex-col items-start">
+                          <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-bold text-[10px] border border-green-200 flex items-center gap-1"><Leaf size={10} /> RECIENTE</span>
                         </div>
                     );
                 }
 
+                // RENDER: CANTIDAD (STOCK)
                 if (key === "cantidad") {
+                    // Usamos row.cantidad directamente por seguridad
                     return (
                         <div className="flex items-center gap-1.5">
-                            <span className="text-lg font-bold text-purple-700">{value}</span>
+                            <span className="text-lg font-bold text-purple-700">{row.cantidad ?? 0}</span>
                             <span className="text-xs text-gray-500 font-bold bg-gray-100 px-1.5 py-0.5 rounded uppercase">
                                 {row.clave_unidad || "PZA"}
                             </span>
@@ -153,6 +165,20 @@ export const InventarioTable = () => {
                     );
                 }
 
+                // RENDER: CONDICIÓN (Estatus Producto)
+                if (key === "estado") {
+                    return (
+                      <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${
+                        value === 'Nuevo' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                        value === 'Buen Estado' ? 'bg-teal-50 text-teal-700 border-teal-100' :
+                        'bg-gray-50 text-gray-600 border-gray-100'
+                      }`}>
+                        {value || "N/A"}
+                      </span>
+                    );
+                }
+
+                // RENDER: CADUCIDAD
                 if (key === "fecha_caducidad") {
                     const status = getCaducidadStatus(row.fecha_caducidad);
                     return (
@@ -170,17 +196,9 @@ export const InventarioTable = () => {
                     );
                 }
 
-                if (key === "estado") {
-                    return (
-                      <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${
-                        value === 'Nuevo' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
-                        value === 'Buen Estado' ? 'bg-teal-50 text-teal-700 border-teal-100' :
-                        'bg-gray-50 text-gray-600 border-gray-100'
-                      }`}>
-                        {value || "N/A"}
-                      </span>
-                    );
-                }
+                // Resto de columnas simples
+                if (key === "categoria_producto") return <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">{value}</span>;
+                if (key === "nombre_producto") return <div><div className="font-bold text-gray-800 text-sm uppercase">{value}</div>{row.clave_sat && <div className="text-[10px] text-gray-400 font-mono">SAT: {row.clave_sat}</div>}</div>;
 
                 return value;
               }}

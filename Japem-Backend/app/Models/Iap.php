@@ -16,6 +16,8 @@ class Iap extends Model
         'estatus',
         'rubro',
         'actividad_asistencial',
+        'clasificacion',
+        'tipo_beneficiario',
         'personas_beneficiadas',
         'necesidad_primaria',
         'necesidad_complementaria',

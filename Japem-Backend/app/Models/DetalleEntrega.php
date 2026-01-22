@@ -9,20 +9,24 @@ class DetalleEntrega extends Model
 {
     use HasFactory;
 
+    // Asegúrate de que coincida con tu migración
+    protected $table = 'detalle_entregas'; 
+
     protected $fillable = [
         'entrega_id',
-        'nombre_producto',
-        'cantidad_entregada',
+        'inventario_id',
+        'cantidad',
     ];
 
+    // Relación inversa con la Entrega
     public function entrega()
     {
-        return $this->belongsTo(Entrega::class, 'entrega_id');
+        return $this->belongsTo(Entrega::class);
     }
-    
-    // Al guardar una salida, nos aseguramos que el nombre coincida mayúsculas/minúsculas con la entrada
-    public function setNombreProductoAttribute($value)
+
+    // Relación con el Inventario (para saber nombre, unidad, etc.)
+    public function producto()
     {
-        $this->attributes['nombre_producto'] = mb_strtoupper($value, 'UTF-8');
+        return $this->belongsTo(Inventario::class, 'inventario_id');
     }
 }

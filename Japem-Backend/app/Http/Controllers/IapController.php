@@ -54,11 +54,11 @@ class IapController extends Controller
 
         // 2. Buscamos IAPs activas que necesiten ese producto
         // Usamos 'ILIKE' porque estás en PostgreSQL (ignora mayúsculas)
-        $candidatos = Iap::where('estatus', 'Activo')
-            ->where(function($query) use ($producto) {
+        $candidatos = Iap::where('estatus', 'Activa')
+            ->where(function ($query) use ($producto) {
                 $query->where('necesidad_primaria', 'ILIKE', "%$producto%")
-                      ->orWhere('necesidad_complementaria', 'ILIKE', "%$producto%")
-                      ->orWhere('rubro', 'ILIKE', "%$producto%");
+                    ->orWhere('necesidad_complementaria', 'ILIKE', "%$producto%")
+                    ->orWhere('rubro', 'ILIKE', "%$producto%");
             })
             // 3. Reglas de Prioridad
             ->orderBy('es_certificada', 'desc')

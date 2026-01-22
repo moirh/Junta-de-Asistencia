@@ -2,7 +2,7 @@ import { useState } from "react";
 import DonantesTable from "./DonantesTable";
 import { DonativosTable } from "./DonativosTable";
 import { IapTable } from "../Iap/IapTable"; 
-import { EntregasView } from "./EntregasView"; // <--- Importamos la nueva vista
+import { EntregasView } from "./EntregasView";
 import { InventarioTable } from "./InventarioTable"; 
 import { Entrega } from "./Entrega";
 import { HandHeart, Users, Building2, Package, Share2, Truck } from "lucide-react";

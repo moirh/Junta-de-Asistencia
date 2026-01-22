@@ -57,7 +57,7 @@ export const DonativosTable = () => {
           estado: "Nuevo",
           fecha_caducidad: "",
           modalidad: "",
-          clave_unidad: "", // Usamos clave_unidad para mantener consistencia con tu Select
+          clave_unidad: "",
           cantidad: 1,
           precio_venta_unitario: 0,
           precio_venta_total: 0,
@@ -265,7 +265,6 @@ export const DonativosTable = () => {
                         value={detalle.estado || "Nuevo"} onChange={(e) => handleProductChange(index, "estado", e.target.value)}>
                         <option value="Nuevo">Nuevo</option>
                         <option value="Buen Estado">Buen Estado</option>
-                        <option value="Usado">Usado</option>
                       </select>
                     </div>
 
@@ -355,42 +354,6 @@ export const DonativosTable = () => {
                <div><p className="text-xs text-gray-500 uppercase font-bold">Observaciones</p><p className="text-xs text-gray-600 italic">{selectedDonativo.observaciones || "Sin observaciones"}</p></div>
             </div>
 
-            {/* TABLA DETALLADA CON TODOS LOS CAMPOS */}
-            <div className="border rounded-xl overflow-x-auto shadow-sm">
-                <table className="w-full text-xs text-left">
-                    <thead className="bg-gray-800 text-white uppercase font-bold tracking-wider">
-                        <tr>
-                            <th className="p-3">Categoría</th>
-                            <th className="p-3">Producto</th>
-                            <th className="p-3">SAT / Modalidad</th>
-                            <th className="p-3 text-center">Estado</th>
-                            <th className="p-3 text-center">Caducidad</th>
-                            <th className="p-3 text-center">Cant.</th>
-                            <th className="p-3 text-center">Unidad</th>
-                            <th className="p-3 text-right">P. Unit</th>
-                            <th className="p-3 text-right">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {selectedDonativo.detalles.map((d, i) => (
-                            <tr key={i} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-3 text-gray-500">{d.categoria_producto}</td>
-                                <td className="p-3 font-bold text-gray-800">{d.nombre_producto}</td>
-                                <td className="p-3 text-gray-600">
-                                    <div className="font-mono text-[10px] bg-gray-100 px-1 rounded inline-block mb-1">{d.clave_sat || "N/A"}</div>
-                                    <div className="text-[10px]">{d.modalidad}</div>
-                                </td>
-                                <td className="p-3 text-center"><span className={`px-2 py-0.5 rounded-full text-[10px] ${d.estado === 'Nuevo' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{d.estado || "Nuevo"}</span></td>
-                                <td className="p-3 text-center text-red-600 font-semibold">{d.fecha_caducidad ? new Date(d.fecha_caducidad).toLocaleDateString() : "-"}</td>
-                                <td className="p-3 text-center font-bold text-lg bg-gray-50">{d.cantidad}</td>
-                                <td className="p-3 text-center text-gray-500">{d.clave_unidad || d.clave_unidad}</td>
-                                <td className="p-3 text-right text-gray-600">${Number(d.precio_unitario_deducible).toFixed(2)}</td>
-                                <td className="p-3 text-right font-bold text-purple-700 bg-purple-50">${Number(d.monto_deducible_total).toLocaleString()}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
             <button onClick={() => setIsViewModalOpen(false)} className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition">Cerrar Detalle</button>
           </div>
          )}
