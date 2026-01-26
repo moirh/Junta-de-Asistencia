@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Users } from "lucide-react";
 import { Table } from "../../components/ui/Table";
 import { Modal } from "../../components/ui/Modal"; 
 // Asegúrate de que la ruta a tus servicios sea correcta:
@@ -112,15 +112,22 @@ export default function DonantesTable() {
   ];
 
   return (
-    <div className="p-6 animate-fade-in relative w-full">
+    <div className="p-6 animate-fade-in relative w-full max-w-full">
       {/* --- HEADER CORREGIDO --- */}
       {/* 'relative' permite que el botón se posicione absolutamente respecto a este div */}
       <div className="relative flex items-center justify-center mb-8">
         
         {/* 1. TÍTULO EN EL CENTRO */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800">Directorio de Donantes</h1>
-          <p className="text-gray-500 mt-1">Gestiona la información de empresas y particulares</p>
+            {/* Flex row para ponerlos lado a lado */}
+            <h1 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                {/* Si lo quieres a la IZQUIERDA del texto (como IAP): */}
+                <Users className="text-purple-600" size={28} />
+                Directorio de Donantes
+                
+                {/* Si lo quisieras a la DERECHA, mueve la línea de <Users> aquí abajo */}
+            </h1>
+            <p className="text-gray-500 mt-1">Gestiona la información de empresas y particulares</p>
         </div>
 
         {/* 2. BOTÓN PEGADO A LA DERECHA */}

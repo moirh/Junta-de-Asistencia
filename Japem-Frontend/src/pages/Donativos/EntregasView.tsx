@@ -29,7 +29,7 @@ export const EntregasView = () => {
     try {
       const data = await getInventario();
       // Filtramos productos con stock positivo
-      setInventario(data.filter(i => (i.cantidad || i.stock_actual || 0) > 0));
+      setInventario(data.filter(i => (i.cantidad || 0) > 0));
     } catch (error) {
       console.error("Error cargando inventario", error);
     }
@@ -60,7 +60,7 @@ export const EntregasView = () => {
     if (!selectedItem || !iapSeleccionada) return;
 
     // Validación de Stock
-    const stockDisponible = selectedItem.cantidad || selectedItem.stock_actual || 0;
+    const stockDisponible = selectedItem.cantidad || 0;
     if (cantidadAAsignar > stockDisponible) {
         alert(`No hay suficiente stock. Disponible: ${stockDisponible}`);
         return;
@@ -129,7 +129,7 @@ export const EntregasView = () => {
                </div>
                <div className="text-right">
                    <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">
-                       Stock: {item.cantidad || item.stock_actual}
+                       Stock: {item.cantidad}
                    </span>
                </div>
              </div>
@@ -198,7 +198,7 @@ export const EntregasView = () => {
                 <input 
                     type="number" 
                     min="1"
-                    max={selectedItem?.cantidad || selectedItem?.stock_actual}
+                    max={selectedItem?.cantidad}
                     value={cantidadAAsignar}
                     onChange={(e) => setCantidadAAsignar(Number(e.target.value))}
                     className="w-full p-2 border rounded-lg font-bold text-lg"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { FileText, Package, CheckCircle, Clock, MapPin, UserCheck, Calendar, Box, AlertCircle } from "lucide-react";
+import { FileText, Package, Truck, CheckCircle, Clock, MapPin, UserCheck, Calendar, Box, AlertCircle } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { Table } from "../../components/ui/Table";
 import { getHistorialEntregas, confirmarEntrega } from "../../services/entregasService";
@@ -95,7 +95,10 @@ export const Entrega = () => {
       {/* --- HEADER (Estilo IDÉNTICO a Donativos) --- */}
       <div className="relative flex items-center justify-center mb-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800">Mesa de Control de Entregas</h1>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
+            <Truck className="text-purple-600" size={28} />
+            Mesa de Control de Entregas
+          </h1>
           <p className="text-gray-500 mt-1">Gestiona las salidas de almacén pendientes y el historial.</p>
         </div>
         {/* Si quisieras un botón a la derecha (ej. Refrescar), iría aquí con absolute right-0 */}

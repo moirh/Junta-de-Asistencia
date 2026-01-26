@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { 
   Building2, Plus, Users, Heart, Award, FileCheck, 
-  Search, Edit, Trash2, CheckCircle, Activity, History 
+  Edit, Trash2, CheckCircle, Activity, History 
 } from "lucide-react";
 import { Table } from "../../components/ui/Table";
 import { Modal } from "../../components/ui/Modal";
@@ -31,7 +31,7 @@ export const IapTable = () => {
   const [iaps, setIaps] = useState<Iap[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
   // Estado Inicial
@@ -130,33 +130,35 @@ export const IapTable = () => {
   ];
 
   return (
-    <div className="p-6 animate-fade-in w-full">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-end mb-6 gap-4">
-        <div>
-           <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-             <Building2 className="text-purple-600" /> Padrón de IAPs
-           </h2>
-           <p className="text-gray-500 text-sm">Directorio de instituciones y análisis de necesidades.</p>
+    <div className="p-6 animate-fade-in relative w-full max-w-full">
+      
+      {/* --- HEADER CORREGIDO (IGUAL QUE DONATIVOS) --- */}
+      <div className="relative flex items-center justify-center mb-8">
+        
+        {/* 1. TÍTULO EN EL CENTRO */}
+        <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
+                <Building2 className="text-purple-600" size={28} />
+                Padrón de IAPs
+            </h1>
+            <p className="text-gray-500 mt-1">Directorio de instituciones y análisis de necesidades.</p>
         </div>
         
-        <div className="flex gap-2 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-                <input 
-                    type="text" placeholder="Buscar institución..." 
-                    className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-100 outline-none"
-                    value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-            </div>
+        {/* 2. ACCIONES PEGADAS A LA DERECHA (Buscador + Botón) */}
+        <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
+            
+            {/* Buscador Integrado (Opcional, oculto en móviles muy pequeños) */}
+            {/* Botón Nueva IAP */}
             <button 
                 onClick={() => { setForm(initialForm); setIsEditing(false); setIsModalOpen(true); }}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-md font-bold text-sm"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md hover:shadow-lg font-bold transform active:scale-95"
             >
-                <Plus size={18} /> Nueva IAP
+                <Plus size={20} /> 
+                <span className="hidden sm:inline">Nueva IAP</span>
             </button>
         </div>
       </div>
+      {/* ----------------------------------------------- */}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100 animate-fade-in">
@@ -164,7 +166,7 @@ export const IapTable = () => {
            <p className="text-gray-400 font-medium animate-pulse">Cargando padrón de instituciones...</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden">
           <Table
             data={filteredIaps}
             columns={columns}
@@ -202,7 +204,7 @@ export const IapTable = () => {
               }
               if (key === "es_certificada") {
                   return (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 justify-center">
                           <div title={row.es_certificada ? "Certificada" : "No Certificada"}><Award size={18} className={row.es_certificada ? "text-yellow-500" : "text-gray-200"}/></div>
                           <div title={row.tiene_donataria_autorizada ? "Donataria" : "No Donataria"}><FileCheck size={18} className={row.tiene_donataria_autorizada ? "text-blue-500" : "text-gray-200"}/></div>
                           <div title={row.tiene_padron_beneficiarios ? "Padrón OK" : "Sin Padrón"}><CheckCircle size={18} className={row.tiene_padron_beneficiarios ? "text-green-500" : "text-gray-200"}/></div>
@@ -210,11 +212,11 @@ export const IapTable = () => {
                   );
               }
               if (key === "veces_donado") {
-                  return <span className="text-xs font-bold text-gray-500 flex items-center gap-1"><History size={12}/> {value}</span>;
+                  return <div className="flex justify-center"><span className="text-xs font-bold text-gray-500 flex items-center gap-1"><History size={12}/> {value}</span></div>;
               }
               if (key === "id") {
                   return (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 justify-center">
                           <button onClick={() => handleEdit(row)} className="p-1.5 hover:bg-gray-100 rounded text-blue-600 transition"><Edit size={16}/></button>
                           <button onClick={() => row.id && handleDelete(row.id)} className="p-1.5 hover:bg-red-50 rounded text-red-500 transition"><Trash2 size={16}/></button>
                       </div>
@@ -242,7 +244,6 @@ export const IapTable = () => {
                     
                     <div>
                         <label className="text-xs font-bold text-gray-700">Estatus *</label>
-                        {/* --- CORRECCIÓN AQUÍ: Agregamos || "" para evitar error value={null} --- */}
                         <select className="w-full p-2 border rounded-lg text-sm bg-white"
                             value={form.estatus || ""} onChange={e => setForm({...form, estatus: e.target.value})}>
                             <option value="Activa">Activa</option>
@@ -254,7 +255,6 @@ export const IapTable = () => {
 
                     <div>
                         <label className="text-xs font-bold text-gray-700">Clasificación</label>
-                        {/* --- CORRECCIÓN AQUÍ --- */}
                         <select className="w-full p-2 border rounded-lg text-sm bg-white"
                             value={form.clasificacion || ""} onChange={e => setForm({...form, clasificacion: e.target.value})}>
                             <option value="A1">A1</option>
@@ -280,7 +280,6 @@ export const IapTable = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs font-bold text-gray-700">Rubro *</label>
-                        {/* --- CORRECCIÓN AQUÍ --- */}
                         <select className="w-full p-2 border rounded-lg text-sm bg-white"
                             value={form.rubro || ""} onChange={e => setForm({...form, rubro: e.target.value})}>
                             <option value="Ancianos">Ancianos</option>

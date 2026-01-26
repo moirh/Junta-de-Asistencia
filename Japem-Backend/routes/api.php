@@ -29,6 +29,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     Route::apiResource('donativos', DonativoController::class);
 
+    // Inventario General (Resumido)
+    Route::get('/inventario', [InventarioController::class, 'index']);
+
+    // Detalles de un producto específico (Lotes)
+    Route::get('/inventario/{id}/detalles', [InventarioController::class, 'detalles']);
+
     // ==========================================
     // 3. MÓDULO DE IAPs (BENEFICIARIOS Y MATCH)
     // ==========================================
@@ -38,11 +44,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     // 4. MÓDULO DE ENTREGAS (SALIDAS Y CONTROL)
     // ==========================================
-    
+
     // Ruta para procesar la entrega desde el Modal
     Route::post('/entregas/confirmar', [EntregaController::class, 'procesarEntrega']);
-    
-    
+
+
     // Rutas de consulta específicas
     Route::get('/entregas/historial', [EntregaController::class, 'historial']); // Lo ya entregado
     Route::get('/entregas/pendientes', [EntregaController::class, 'pendientes']); // Lo pendiente por entregar

@@ -13,15 +13,21 @@ class Inventario extends Model
     protected $table = 'inventarios';
 
     protected $fillable = [
-        'donativo_id', // Asegúrate de que este campo exista en tu tabla inventarios
-        'categoria_producto', 
-        'nombre_producto', 
-        'cantidad', 
-        'clave_unidad',
+        'donativo_id',
+        'catalogo_producto_id',
+        'nombre_producto',
+        'cantidad',
+        'estado',
+        'modalidad',
         'fecha_caducidad',
-        'estatus_producto'
+        'clave_unidad',
+        'clave_sat',
+        'categoria_producto',
+        'precio_unitario_deducible',
+        'monto_deducible_total',
+        'precio_venta_unitario',
+        'precio_venta_total'
     ];
-
     protected $appends = ['dias_en_almacen', 'semaforo_rotacion'];
 
     // 1. RELACIÓN: El inventario pertenece a un Donativo

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Eye, User, Package, Trash2, CheckCircle, Barcode, Calendar, DollarSign, Box, Tag, Layers, Hash, AlertTriangle, Clock, Ruler } from "lucide-react";
+import { Plus, Eye, User, Package, HandHeart, Trash2, CheckCircle, Barcode, Calendar,Box, Tag, Layers, Hash, AlertTriangle, Clock, Ruler } from "lucide-react";
 import { Table } from "../../components/ui/Table";
 import { Modal } from "../../components/ui/Modal";
 import { getDonativos, createDonativo } from "../../services/donativosService";
@@ -16,13 +16,13 @@ export const DonativosTable = () => {
   const [selectedDonativo, setSelectedDonativo] = useState<Donativo | null>(null);
 
   const initialFormState = {
-    donante_id: 0,
-    fecha_donativo: new Date().toISOString().split('T')[0],
-    monto_total_deducible: 0,
-    observaciones: "",
-    detalles: [] as any[]
-  };
-
+  donante_id: 0,
+  fecha_donativo: new Date().toISOString().split('T')[0],
+  folio_donativo: "", // <--- AGREGAR ESTO
+  monto_total_deducible: 0,
+  observaciones: "",
+  detalles: [] as any[]
+};
   const [formData, setFormData] = useState(initialFormState);
 
   useEffect(() => {
@@ -122,7 +122,7 @@ export const DonativosTable = () => {
     { key: "detalles" as keyof Donativo, label: "Productos (Resumen)" }, 
     { key: "monto_total_deducible" as keyof Donativo, label: "Monto Total" },
     { key: "id" as keyof Donativo, label: "Acciones" },
-  ];
+  ]; 
 
   return (
     <div className="p-6 animate-fade-in relative w-full max-w-full">
@@ -132,7 +132,10 @@ export const DonativosTable = () => {
         
         {/* 1. TÍTULO EN EL CENTRO */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-800">Registro de Entradas</h1>
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
+            <HandHeart className="text-purple-600" size={28} />
+            Registro de Donativos
+          </h1>
           <p className="text-gray-500 mt-1">Gestiona los donativos recibidos e inventario.</p>
         </div>
 
@@ -210,6 +213,7 @@ export const DonativosTable = () => {
                 <label className="text-sm font-bold text-gray-700">Fecha Recepción *</label>
                 <input type="date" required className="w-full p-3 border border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-200 outline-none" value={formData.fecha_donativo} onChange={(e) => setFormData({ ...formData, fecha_donativo: e.target.value })} />
               </div>
+
               <div className="md:col-span-4 space-y-1.5">
                 <label className="text-sm font-bold text-gray-700">Notas / Observaciones</label>
                 <input type="text" className="w-full p-3 border border-purple-200 rounded-xl focus:ring-4 focus:ring-purple-200 outline-none" placeholder="Ej. Entregado por chofer..." value={formData.observaciones} onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })} />

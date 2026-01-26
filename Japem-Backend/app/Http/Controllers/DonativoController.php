@@ -3,68 +3,117 @@
 namespace App\Http\Controllers;
 
 use App\Models\Donativo;
-use App\Models\Inventario; // Asegúrate de que este sea el modelo correcto
+use App\Models\Inventario;
+use App\Models\CatalogoProducto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class DonativoController extends Controller
 {
-    // --- ESTA ES LA FUNCIÓN QUE TE FALTABA ---
     public function index()
     {
-        // Traemos la relación 'donante' y 'detalles' para la tabla
         return Donativo::with(['donante', 'detalles'])->orderBy('fecha_donativo', 'desc')->get();
     }
-    // ------------------------------------------
+
+    public function catalogo()
+    {
+        return CatalogoProducto::select('nombre', 'categoria', 'unidad_medida')
+            ->orderBy('nombre')
+            ->get();
+    }
 
     public function store(Request $request)
     {
-        // 1. Validación básica
+        // 1. VALIDACIONES
         $request->validate([
-            'donante_id' => 'required|exists:donantes,id',
+            'donante_id' => 'required',
             'fecha_donativo' => 'required|date',
-            'detalles' => 'required|array|min:1'
+            'detalles' => 'required|array',
         ]);
 
         try {
-            return DB::transaction(function () use ($request) {
-                // 2. Crear Cabecera
-                $donativo = Donativo::create([
-                    'donante_id' => $request->donante_id,
-                    'fecha_donativo' => $request->fecha_donativo,
-                    'monto_total_deducible' => $request->monto_total_deducible ?? 0,
-                    'observaciones' => $request->observaciones,
+            DB::beginTransaction();
+
+            // 2. Crear el Donativo (Inicialmente en 0)
+            $donativo = Donativo::create([
+                'donante_id' => $request->donante_id,
+                'fecha_donativo' => $request->fecha_donativo,
+                'monto_total_deducible' => 0, // Se actualizará al final
+                'observaciones' => $request->observaciones ?? ''
+            ]);
+
+            // Variable para ir sumando el dinero de todos los productos
+            $totalAcumuladoDonacion = 0;
+
+            // 3. Procesar productos
+            foreach ($request->detalles as $detalle) {
+
+                // --- CORRECCIÓN DE NOMBRES ---
+                // Buscamos el precio con el nombre corto O con el nombre largo.
+                // Si no encuentra ninguno, pone 0.
+                $precioDeducible = $detalle['precio_unitario']
+                    ?? $detalle['precio_unitario_deducible']
+                    ?? 0;
+
+                $precioVenta = $detalle['precio_venta']
+                    ?? $detalle['precio_venta_unitario']
+                    ?? 0;
+
+                $cantidad = $detalle['cantidad'];
+
+                // Calculamos el subtotal de esta línea
+                $subtotalDeducible = $cantidad * $precioDeducible;
+
+                // Sumamos al acumulador del Donativo
+                $totalAcumuladoDonacion += $subtotalDeducible;
+                // ------------------------------------------
+
+                $nombreLimpio = mb_strtoupper(trim($detalle['nombre_producto']), 'UTF-8');
+
+                // Catálogo
+                $productoCatalogo = CatalogoProducto::firstOrCreate(
+                    ['nombre' => $nombreLimpio],
+                    [
+                        'categoria' => $detalle['categoria_producto'],
+                        'clave_sat' => $detalle['clave_sat'] ?? '01010101',
+                        'unidad_medida' => $detalle['clave_unidad'],
+                        'precio_referencia' => $precioDeducible
+                    ]
+                );
+
+                // Inventario
+                Inventario::create([
+                    'donativo_id' => $donativo->id,
+                    'catalogo_producto_id' => $productoCatalogo->id,
+                    'nombre_producto' => $nombreLimpio,
+                    'cantidad' => $cantidad,
+                    'estado' => $detalle['estado'],
+                    'modalidad' => $detalle['modalidad'],
+                    'fecha_caducidad' => $detalle['fecha_caducidad'] ?? null,
+                    'clave_unidad' => $productoCatalogo->unidad_medida,
+                    'categoria_producto' => $productoCatalogo->categoria,
+                    'clave_sat' => $detalle['clave_sat'] ?? '01010101',
+
+                    // Precios Individuales (Hijos)
+                    'precio_unitario_deducible' => $precioDeducible,
+                    'monto_deducible_total' => $subtotalDeducible,
+
+                    'precio_venta_unitario' => $precioVenta,
+                    'precio_venta_total' => $cantidad * $precioVenta,
                 ]);
+            }
 
-                // 3. Crear Detalles (Productos / Inventario)
-                $productosData = [];
-                foreach ($request->detalles as $prod) {
-                    $productosData[] = [
-                        'categoria_producto' => $prod['categoria_producto'] ?? 'GENERAL',
-                        'nombre_producto' => $prod['nombre_producto'] ?? 'SIN NOMBRE',
-                        'clave_sat' => $prod['clave_sat'] ?? null,
-                        'modalidad' => $prod['modalidad'] ?? null,
-                        'clave_unidad' => $prod['clave_unidad'] ?? null,
-                        'cantidad' => (int) ($prod['cantidad'] ?? 1),
-                        'precio_venta_unitario' => (float) ($prod['precio_venta_unitario'] ?? 0),
-                        'precio_venta_total' => (float) ($prod['precio_venta_total'] ?? 0),
-                        'precio_unitario_deducible' => (float) ($prod['precio_unitario_deducible'] ?? 0),
-                        'monto_deducible_total' => (float) ($prod['monto_deducible_total'] ?? 0),
-                        'estado' => $prod['estado'] ?? 'Nuevo',
-                        'fecha_caducidad' => $prod['fecha_caducidad'] ?? null,
-                    ];
-                }
-                
-                // Guardar usando la relación definida en Donativo.php
-                $donativo->detalles()->createMany($productosData);
+            // 4. --- PASO FINAL: ACTUALIZAR EL TOTAL DEL DONATIVO (PAPÁ) ---
+            // Ahora que terminó el ciclo, ya sabemos cuánto sumó todo.
+            $donativo->update([
+                'monto_total_deducible' => $totalAcumuladoDonacion
+            ]);
 
-                return response()->json($donativo->load('detalles'), 201);
-            });
-
+            DB::commit();
+            return response()->json(['message' => 'Donativo registrado correctamente']);
         } catch (\Exception $e) {
-            Log::error('Error guardando donativo: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+            DB::rollBack();
+            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 }
