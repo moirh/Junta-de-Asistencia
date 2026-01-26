@@ -17,17 +17,22 @@ class InventarioController extends Controller
         $inventario = DB::table('inventarios')
             ->leftJoin('catalogo_productos', 'inventarios.catalogo_producto_id', '=', 'catalogo_productos.id')
             ->select(
-                DB::raw('COALESCE(catalogo_productos.id, inventarios.id * -1) as id'),
+                // 1. ID y NOMBRE: Usamos MAX para que colapse todo en una sola línea
+                DB::raw('MAX(COALESCE(catalogo_productos.id, inventarios.id * -1)) as id'),
                 DB::raw('COALESCE(catalogo_productos.nombre, inventarios.nombre_producto) as nombre_producto'),
-                'catalogo_productos.categoria as categoria_producto',
-                'catalogo_productos.unidad_medida as unidad_medida',
-                'catalogo_productos.clave_sat',
 
-                // --- CAMPOS QUE FALTABAN ---
-                'inventarios.estado',          // <--- AGREGADO: Para la columna "Condición"
-                'inventarios.fecha_caducidad', // <--- AGREGADO: Para la columna "Caducidad"
-                // ---------------------------
+                // 2. DATOS DEL CATÁLOGO: Usamos MAX para ignorar nulos
+                DB::raw('MAX(catalogo_productos.categoria) as categoria_producto'),
+                DB::raw('MAX(catalogo_productos.unidad_medida) as unidad_medida'),
 
+                // 3. CLAVE SAT (LA SOLUCIÓN): Busca el valor MÁXIMO (ignora nulos) entre las dos tablas
+                DB::raw('MAX(COALESCE(catalogo_productos.clave_sat, inventarios.clave_sat)) as clave_sat'),
+
+                // 4. DATOS DE INVENTARIO:
+                DB::raw('MAX(inventarios.estado) as estado'),
+                DB::raw('MIN(inventarios.fecha_caducidad) as fecha_caducidad'),
+
+                // 5. SUMATORIAS
                 DB::raw('SUM(inventarios.cantidad) as cantidad'),
                 DB::raw('SUM(inventarios.cantidad) as stock_actual'),
                 DB::raw('SUM(inventarios.monto_deducible_total) as precio_total')
@@ -38,18 +43,11 @@ class InventarioController extends Controller
                         ->orWhere('inventarios.nombre_producto', 'ILIKE', "%$search%");
                 });
             })
+            // --- AQUÍ ESTABA EL ERROR ---
+            // Borramos la lista larga y dejamos solo esto. 
+            // Así obligamos a que "LENTEJAS" sea una sola fila con toda la info junta.
             ->groupBy(
-                'catalogo_productos.id',
-                'catalogo_productos.nombre',
-                'catalogo_productos.categoria',
-                'catalogo_productos.unidad_medida',
-                'catalogo_productos.clave_sat',
-                'inventarios.nombre_producto',
-                'inventarios.id', // Agrupar por ID de inventario mantiene el detalle de lotes
-
-                // --- AGREGAR TAMBIÉN AL GROUP BY ---
-                'inventarios.estado',
-                'inventarios.fecha_caducidad'
+                DB::raw('COALESCE(catalogo_productos.nombre, inventarios.nombre_producto)')
             )
             ->having(DB::raw('SUM(inventarios.cantidad)'), '>', 0)
             ->orderBy(DB::raw('COALESCE(catalogo_productos.nombre, inventarios.nombre_producto)'))

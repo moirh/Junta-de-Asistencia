@@ -36,7 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inventario/{id}/detalles', [InventarioController::class, 'detalles']);
 
     // ==========================================
-    // 3. MÓDULO DE IAPs (BENEFICIARIOS Y MATCH)
+    // 3. MÓDULO DE IAPs (BENEFICIARIOS)
     // ==========================================
     Route::get('iaps/sugerencias', [IapController::class, 'sugerirIaps']);
     Route::apiResource('iaps', IapController::class);
@@ -45,28 +45,26 @@ Route::middleware('auth:sanctum')->group(function () {
     // 4. MÓDULO DE ENTREGAS (SALIDAS Y CONTROL)
     // ==========================================
 
+    // ✅ NUEVA RUTA: Sugerencias Inteligentes (Clasificación A, B, C...)
+    Route::get('/entregas/sugerencias/{inventarioId}', [EntregaController::class, 'sugerirAsignacion']);
+
     // Ruta para procesar la entrega desde el Modal
     Route::post('/entregas/confirmar', [EntregaController::class, 'procesarEntrega']);
-
 
     // Rutas de consulta específicas
     Route::get('/entregas/historial', [EntregaController::class, 'historial']); // Lo ya entregado
     Route::get('/entregas/pendientes', [EntregaController::class, 'pendientes']); // Lo pendiente por entregar
 
-    // API Resource estándar (si lo usas para CRUD completo)
+    // API Resource estándar
     Route::apiResource('entregas', EntregaController::class);
 
     // ==========================================
-    // 5. MÓDULO DE INVENTARIO Y DISTRIBUCIÓN
+    // 5. DISTRIBUCIÓN
     // ==========================================
-    Route::get('inventario', [InventarioController::class, 'index']);
     Route::post('/distribucion', [DistribucionController::class, 'store']);
 
-    // *** CORRECCIÓN IMPORTANTE AQUÍ ***
-    // Redirigimos la ruta antigua que usa tu Frontend hacia la función NUEVA y corregida ('pendientes')
-    // Esto hará que aparezcan los registros antiguos (1, 2, 3) y el estatus correcto.
+    // Ruta para compatibilidad con versiones anteriores del frontend
     Route::get('/distribucion/historial', [EntregaController::class, 'pendientes']);
-
 
     // ==========================================
     // OTROS MÓDULOS

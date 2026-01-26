@@ -5,11 +5,32 @@
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
 }
 
-body {
+/* CONFIGURACIÓN GLOBAL PARA ELIMINAR SCROLLS VISUALES */
+html, body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
+  background-color: #f3f4f6;
+  
+  /* 1. Elimina el scroll horizontal (barra de abajo) */
+  overflow-x: hidden; 
+
+  /* 2. Oculta la barra de la derecha (vertical) pero permite seguir haciendo scroll */
+  scrollbar-width: none; /* Para Firefox */
+  -ms-overflow-style: none; /* Para Internet Explorer y Edge */
+}
+
+/* Ocultar barra de la derecha para Chrome, Safari y Opera */
+body::-webkit-scrollbar {
+  display: none;
+}
+
+/* Aseguramos que el contenedor raíz de React no genere desbordamientos */
+#root {
+  width: 100%;
   overflow-x: hidden;
-  background-color: #f3f4f6; /* Fondo gris suave base */
 }
 
 /* === Animaciones del Proyecto Siace === */
@@ -51,19 +72,4 @@ body {
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-/* Scroll personalizado */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #f1f1f1;
-}
-::-webkit-scrollbar-thumb {
-  background: #036050;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #02453a;
 }

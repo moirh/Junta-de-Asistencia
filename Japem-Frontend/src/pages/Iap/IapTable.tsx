@@ -9,7 +9,6 @@ import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
-// 1. INTERFACE
 interface Iap {
   id?: number; 
   nombre_iap: string;
@@ -34,14 +33,13 @@ export const IapTable = () => {
   const [searchTerm] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // Estado Inicial
   const initialForm: Iap = {
     nombre_iap: '',
     estatus: 'Activa',
     rubro: 'Salud',
     actividad_asistencial: '',
-    clasificacion: 'I.A.P.',
-    tipo_beneficiario: 'Público General',
+    clasificacion: 'A1',
+    tipo_beneficiario: 'Fijos',
     personas_beneficiadas: 0,
     necesidad_primaria: '',
     necesidad_complementaria: '',
@@ -102,6 +100,12 @@ export const IapTable = () => {
     setIsModalOpen(true);
   };
 
+  const openNewModal = () => {
+    setForm(initialForm);
+    setIsEditing(false);
+    setIsModalOpen(true);
+  };
+
   const handleDelete = async (id: number) => {
     if (!confirm("¿Estás seguro de eliminar esta IAP?")) return;
     try {
@@ -122,7 +126,7 @@ export const IapTable = () => {
 
   const columns = [
     { key: "nombre_iap" as keyof Iap, label: "Institución" },
-    { key: "tipo_beneficiario" as keyof Iap, label: "Población" },
+    { key: "rubro" as keyof Iap, label: "Rubro" },
     { key: "necesidad_primaria" as keyof Iap, label: "Necesidad Principal" },
     { key: "es_certificada" as keyof Iap, label: "Validaciones" },
     { key: "veces_donado" as keyof Iap, label: "Historial" },
@@ -132,41 +136,34 @@ export const IapTable = () => {
   return (
     <div className="p-6 animate-fade-in relative w-full max-w-full">
       
-      {/* --- HEADER CORREGIDO (IGUAL QUE DONATIVOS) --- */}
+      {/* HEADER */}
       <div className="relative flex items-center justify-center mb-8">
-        
-        {/* 1. TÍTULO EN EL CENTRO */}
         <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-800 flex items-center justify-center gap-2">
-                <Building2 className="text-purple-600" size={28} />
+            <h1 className="text-2xl font-bold text-[#353131] flex items-center justify-center gap-2">
+                <Building2 className="text-[#719c44]" size={28} />
                 Padrón de IAPs
             </h1>
-            <p className="text-gray-500 mt-1">Directorio de instituciones y análisis de necesidades.</p>
+            <p className="text-[#817e7e] mt-1">Directorio de instituciones y análisis de necesidades.</p>
         </div>
         
-        {/* 2. ACCIONES PEGADAS A LA DERECHA (Buscador + Botón) */}
         <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
-            
-            {/* Buscador Integrado (Opcional, oculto en móviles muy pequeños) */}
-            {/* Botón Nueva IAP */}
             <button 
-                onClick={() => { setForm(initialForm); setIsEditing(false); setIsModalOpen(true); }}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 transition-all shadow-md hover:shadow-lg font-bold transform active:scale-95"
+                onClick={openNewModal}
+                className="group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
             >
-                <Plus size={20} /> 
+                <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" /> 
                 <span className="hidden sm:inline">Nueva IAP</span>
             </button>
         </div>
       </div>
-      {/* ----------------------------------------------- */}
 
       {loading ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-gray-100 animate-fade-in">
-           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mb-4"></div>
-           <p className="text-gray-400 font-medium animate-pulse">Cargando padrón de instituciones...</p>
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-[#c0c6b6]/30 animate-pulse">
+           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#719c44] mb-4"></div>
+           <p className="text-[#817e7e] font-medium">Cargando padrón de instituciones...</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl shadow-xl shadow-gray-100 border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-xl shadow-[#c0c6b6]/20 border border-[#c0c6b6]/30 overflow-hidden">
           <Table
             data={filteredIaps}
             columns={columns}
@@ -174,10 +171,11 @@ export const IapTable = () => {
               if (key === "nombre_iap") {
                   return (
                       <div>
-                          <div className="font-bold text-gray-800">{value}</div>
+                          <div className="font-bold text-[#353131]">{value}</div>
                           <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded border border-purple-100 font-semibold uppercase">{row.rubro}</span>
-                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${row.estatus === 'Activa' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              <span className="text-[10px] bg-[#f2f5f0] text-[#719c44] px-1.5 py-0.5 rounded border border-[#c0c6b6] font-semibold uppercase">{row.rubro}</span>
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded 
+                                  ${row.estatus === 'Activa' ? 'bg-[#f2f5f0] text-[#719c44]' : 'bg-red-50 text-red-700'}`}>
                                   {row.estatus}
                               </span>
                           </div>
@@ -186,10 +184,10 @@ export const IapTable = () => {
               }
               if (key === "tipo_beneficiario") {
                   return (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Users size={14} className="text-gray-400"/>
+                      <div className="flex items-center gap-2 text-sm text-[#817e7e]">
+                          <Users size={14} className="text-[#c0c6b6]"/>
                           <span>{value}</span>
-                          <span className="bg-gray-100 text-gray-700 px-1.5 rounded text-xs font-bold" title="Cantidad">
+                          <span className="bg-[#f2f5f0] text-[#353131] px-1.5 rounded text-xs font-bold" title="Cantidad">
                               {row.personas_beneficiadas}
                           </span>
                       </div>
@@ -197,28 +195,36 @@ export const IapTable = () => {
               }
               if (key === "necesidad_primaria") {
                   return value ? (
-                      <span className="flex items-center gap-1 text-xs font-medium text-orange-700 bg-orange-50 px-2 py-1 rounded-md border border-orange-100 w-fit uppercase">
+                      <span className="flex items-center gap-1 text-xs font-medium text-[#d97706] bg-[#ffedcc] px-2 py-1 rounded-md border border-[#fed7aa] w-fit uppercase">
                           <Heart size={10} /> {value}
                       </span>
-                  ) : <span className="text-gray-300 text-xs">-</span>;
+                  ) : <span className="text-[#c0c6b6] text-xs">-</span>;
               }
+              
               if (key === "es_certificada") {
                   return (
                       <div className="flex gap-2 justify-center">
-                          <div title={row.es_certificada ? "Certificada" : "No Certificada"}><Award size={18} className={row.es_certificada ? "text-yellow-500" : "text-gray-200"}/></div>
-                          <div title={row.tiene_donataria_autorizada ? "Donataria" : "No Donataria"}><FileCheck size={18} className={row.tiene_donataria_autorizada ? "text-blue-500" : "text-gray-200"}/></div>
-                          <div title={row.tiene_padron_beneficiarios ? "Padrón OK" : "Sin Padrón"}><CheckCircle size={18} className={row.tiene_padron_beneficiarios ? "text-green-500" : "text-gray-200"}/></div>
+                          <div title={row.es_certificada ? "Certificada" : "No Certificada"}>
+                              <Award size={18} className={`transition-transform hover:scale-125 ${row.es_certificada ? "text-yellow-500" : "text-[#c0c6b6]"}`}/>
+                          </div>
+                          <div title={row.tiene_donataria_autorizada ? "Donataria" : "No Donataria"}>
+                              <FileCheck size={18} className={`transition-transform hover:scale-125 ${row.tiene_donataria_autorizada ? "text-blue-500" : "text-[#c0c6b6]"}`}/>
+                          </div>
+                          <div title={row.tiene_padron_beneficiarios ? "Padrón OK" : "Sin Padrón"}>
+                              <CheckCircle size={18} className={`transition-transform hover:scale-125 ${row.tiene_padron_beneficiarios ? "text-[#719c44]" : "text-[#c0c6b6]"}`}/>
+                          </div>
                       </div>
                   );
               }
+
               if (key === "veces_donado") {
-                  return <div className="flex justify-center"><span className="text-xs font-bold text-gray-500 flex items-center gap-1"><History size={12}/> {value}</span></div>;
+                  return <div className="flex justify-center"><span className="text-xs font-bold text-[#817e7e] flex items-center gap-1"><History size={12}/> {value}</span></div>;
               }
               if (key === "id") {
                   return (
                       <div className="flex gap-2 justify-center">
-                          <button onClick={() => handleEdit(row)} className="p-1.5 hover:bg-gray-100 rounded text-blue-600 transition"><Edit size={16}/></button>
-                          <button onClick={() => row.id && handleDelete(row.id)} className="p-1.5 hover:bg-red-50 rounded text-red-500 transition"><Trash2 size={16}/></button>
+                          <button onClick={() => handleEdit(row)} className="p-1.5 hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] rounded transition hover:scale-110"><Edit size={16}/></button>
+                          <button onClick={() => row.id && handleDelete(row.id)} className="p-1.5 hover:bg-red-50 text-[#817e7e] hover:text-red-500 rounded transition hover:scale-110"><Trash2 size={16}/></button>
                       </div>
                   );
               }
@@ -228,24 +234,31 @@ export const IapTable = () => {
         </div>
       )}
 
-      {/* MODAL CON LOS 13 CAMPOS */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={isEditing ? "Editar IAP" : "Registrar Nueva IAP"} size="large">
-        <form onSubmit={handleSave} className="space-y-5">
+      {/* --- MODAL --- */}
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        title={isEditing ? "Editar IAP" : "Registrar Nueva IAP"} 
+        size="extraLarge"
+        variant="japem" 
+        icon={<Building2 />} 
+      >
+        <form onSubmit={handleSave} className="space-y-6 p-1">
             
-            {/* 1. SECCIÓN: IDENTIDAD (4 Campos) */}
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-100">
-                <h4 className="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-1"><Building2 size={12}/> Identidad y Estatus</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 1. SECCIÓN: IDENTIDAD */}
+            <div className="p-5 bg-[#f2f5f0] rounded-xl border border-[#c0c6b6]">
+                <h4 className="text-xs font-bold text-[#719c44] uppercase mb-4 flex items-center gap-2">
+                    <Building2 size={14}/> Identidad y Estatus
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="md:col-span-2">
-                        <label className="text-xs font-bold text-gray-700">Nombre de la IAP *</label>
-                        <input type="text" required className="w-full p-2 border rounded-lg text-sm uppercase focus:ring-2 focus:ring-purple-200 outline-none" 
-                            value={form.nombre_iap} onChange={e => setForm({...form, nombre_iap: e.target.value})} />
+                        <label className="text-xs font-bold text-[#353131] block mb-1">Nombre de la IAP *</label>
+                        <input type="text" required className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.nombre_iap} onChange={e => setForm({...form, nombre_iap: e.target.value})} />
                     </div>
                     
                     <div>
-                        <label className="text-xs font-bold text-gray-700">Estatus *</label>
-                        <select className="w-full p-2 border rounded-lg text-sm bg-white"
-                            value={form.estatus || ""} onChange={e => setForm({...form, estatus: e.target.value})}>
+                        <label className="text-xs font-bold text-[#353131] block mb-1">Estatus *</label>
+                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.estatus || ""} onChange={e => setForm({...form, estatus: e.target.value})}>
                             <option value="Activa">Activa</option>
                             <option value="Inactiva">Inactiva</option>
                             <option value="Suspendida">Suspendida</option>
@@ -254,34 +267,26 @@ export const IapTable = () => {
                     </div>
 
                     <div>
-                        <label className="text-xs font-bold text-gray-700">Clasificación</label>
-                        <select className="w-full p-2 border rounded-lg text-sm bg-white"
-                            value={form.clasificacion || ""} onChange={e => setForm({...form, clasificacion: e.target.value})}>
-                            <option value="A1">A1</option>
-                            <option value="A2">A2</option>
-                            <option value="A3">A3</option>
-                            <option value="A4">A4</option>
-                            <option value="B1">B1</option>
-                            <option value="B2">B2</option>
-                            <option value="B3">B3</option>
-                            <option value="C1">C1</option>
-                            <option value="C2">C2</option>
-                            <option value="C3">C3</option>
-                            <option value="C4">C4</option>
+                        <label className="text-xs font-bold text-[#353131] block mb-1">Clasificación</label>
+                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.clasificacion || ""} onChange={e => setForm({...form, clasificacion: e.target.value})}>
+                            <option value="A1">A1</option><option value="A2">A2</option><option value="A3">A3</option><option value="A4">A4</option>
+                            <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option>
+                            <option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option><option value="C4">C4</option>
                             <option value="D">D</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            {/* 2. SECCIÓN: ACTIVIDAD (3 Campos) */}
-            <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-                <h4 className="text-xs font-bold text-blue-800 uppercase mb-3 flex items-center gap-1"><Activity size={12}/> Actividad Asistencial</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* 2. SECCIÓN: ACTIVIDAD */}
+            <div className="p-5 bg-[#f9fafb] rounded-xl border border-[#e5e7eb]">
+                <h4 className="text-xs font-bold text-[#817e7e] uppercase mb-4 flex items-center gap-2">
+                    <Activity size={14}/> Actividad Asistencial
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                        <label className="text-xs font-bold text-gray-700">Rubro *</label>
-                        <select className="w-full p-2 border rounded-lg text-sm bg-white"
-                            value={form.rubro || ""} onChange={e => setForm({...form, rubro: e.target.value})}>
+                        <label className="text-xs font-bold text-[#353131] block mb-1">Rubro *</label>
+                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.rubro || ""} onChange={e => setForm({...form, rubro: e.target.value})}>
                             <option value="Ancianos">Ancianos</option>
                             <option value="Desarrollo Social">Desarrollo Social</option>
                             <option value="Educación">Educación</option>
@@ -292,9 +297,8 @@ export const IapTable = () => {
                         </select>
                     </div>
                     <div>
-                        <label className="text-xs font-bold text-gray-700">Actividad Específica</label>
-                        <select className="w-full p-2 border border-blue-200 rounded-lg text-sm" 
-                            value={form.actividad_asistencial || ''} onChange={e => setForm({...form, actividad_asistencial: e.target.value})} >
+                        <label className="text-xs font-bold text-[#353131] block mb-1">Actividad Específica</label>
+                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.actividad_asistencial || ''} onChange={e => setForm({...form, actividad_asistencial: e.target.value})} >
                                 <option value="">Seleccione una opción</option>
                                 <option value="Alojamiento y Asistencia Residencial para Población Vulnerable">Alojamiento y Asistencia Residencial para Población Vulnerable</option>
                                 <option value="Capacitación Laboral y Desarrollo de Habilidades">Capacitación Laboral y Desarrollo de Habilidades</option>
@@ -313,69 +317,89 @@ export const IapTable = () => {
                 </div>
             </div>
 
-            {/* 3. SECCIÓN: BENEFICIARIOS Y NECESIDADES (5 Campos) */}
-            <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
-                <h4 className="text-xs font-bold text-purple-800 uppercase mb-3 flex items-center gap-1"><Heart size={12}/> Población y Necesidades</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 3. SECCIÓN: BENEFICIARIOS Y NECESIDADES */}
+            <div className="p-5 bg-[#f2f5f0] rounded-xl border border-[#c0c6b6]">
+                <h4 className="text-xs font-bold text-[#719c44] uppercase mb-4 flex items-center gap-2">
+                    <Heart size={14}/> Población y Necesidades
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div>
-                        <label className="text-xs font-bold text-gray-700">Tipo Beneficiario</label>
-                        <select className="w-full p-2 border border-purple-200 rounded-lg text-sm" 
-                            value={form.tipo_beneficiario || ''} onChange={e => setForm({...form, tipo_beneficiario: e.target.value})} >
+                        <label className="text-xs font-bold text-[#353131] block mb-1">Tipo Beneficiario</label>
+                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.tipo_beneficiario || ''} onChange={e => setForm({...form, tipo_beneficiario: e.target.value})} >
                                 <option value="">Seleccione una opción</option>
                                 <option value="Fijos">Fijos</option>
                                 <option value="Temporales">Temporales</option>
                                 <option value="Flotantes">Flotantes</option>
                             </select>
                     </div>
+                    
+                    {/* AQUÍ ESTÁ EL INPUT CORREGIDO */}
                     <div>
-                        <label className="text-xs font-bold text-gray-700">Población (Cant.)</label>
-                        <input type="number" min="0" className="w-full p-2 border border-purple-200 rounded-lg text-sm" 
-                            value={form.personas_beneficiadas} onChange={e => setForm({...form, personas_beneficiadas: Number(e.target.value)})} />
+                        <label className="text-xs font-bold text-[#353131] block mb-1">Población (Cant.)</label>
+                        <input 
+                            type="number" 
+                            min="0" 
+                            className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" 
+                            
+                            // 1. Mostrar vacío si es 0
+                            value={form.personas_beneficiadas === 0 ? "" : form.personas_beneficiadas} 
+                            
+                            // 2. Guardar 0 si el input queda vacío
+                            onChange={e => setForm({...form, personas_beneficiadas: e.target.value === "" ? 0 : Number(e.target.value)})} 
+                        />
                     </div>
-                    <div>
-                    </div>
+                    <div></div>
 
-                    <div className="md:col-span-3 grid grid-cols-2 gap-4">
+                    <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div>
-                            <label className="text-xs font-bold text-gray-700">Necesidad Primaria (Prioridad)</label>
-                            <input type="text" className="w-full p-2 border border-purple-200 bg-white rounded-lg text-sm uppercase" 
-                                placeholder="Ej. ARROZ, MEDICAMENTOS"
-                                value={form.necesidad_primaria || ''} onChange={e => setForm({...form, necesidad_primaria: e.target.value})} />
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Necesidad Primaria (Prioridad)</label>
+                            <input type="text" className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" placeholder="Ej. ARROZ, MEDICAMENTOS" value={form.necesidad_primaria || ''} onChange={e => setForm({...form, necesidad_primaria: e.target.value})} />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-gray-700">Necesidad Complementaria</label>
-                            <input type="text" className="w-full p-2 border border-purple-200 bg-white rounded-lg text-sm uppercase" 
-                                placeholder="Ej. ROPA, JUGUETES"
-                                value={form.necesidad_complementaria || ''} onChange={e => setForm({...form, necesidad_complementaria: e.target.value})} />
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Necesidad Complementaria</label>
+                            <input type="text" className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" placeholder="Ej. ROPA, JUGUETES" value={form.necesidad_complementaria || ''} onChange={e => setForm({...form, necesidad_complementaria: e.target.value})} />
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* 4. SECCIÓN: VALIDACIONES (3 Campos Checkbox) */}
-            <div className="flex flex-wrap gap-4 pt-2">
-                <label className="flex items-center gap-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition flex-1">
-                    <input type="checkbox" className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                        checked={form.es_certificada} onChange={e => setForm({...form, es_certificada: e.target.checked})} />
-                    <span className="text-sm font-medium text-gray-700 flex items-center gap-1"><Award size={16} className="text-yellow-500"/> Certificada</span>
+            {/* 4. SECCIÓN: VALIDACIONES */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
+                    <div className="bg-yellow-100 p-2 rounded-full text-yellow-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
+                        <Award size={20} />
+                    </div>
+                    <div className="flex-1">
+                        <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Certificada</span>
+                    </div>
+                    <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.es_certificada} onChange={e => setForm({...form, es_certificada: e.target.checked})} />
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition flex-1">
-                    <input type="checkbox" className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                        checked={form.tiene_donataria_autorizada} onChange={e => setForm({...form, tiene_donataria_autorizada: e.target.checked})} />
-                    <span className="text-sm font-medium text-gray-700 flex items-center gap-1"><FileCheck size={16} className="text-blue-500"/> Donataria</span>
+                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
+                    <div className="bg-blue-100 p-2 rounded-full text-blue-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
+                        <FileCheck size={20} />
+                    </div>
+                    <div className="flex-1">
+                        <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Donataria</span>
+                    </div>
+                    <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.tiene_donataria_autorizada} onChange={e => setForm({...form, tiene_donataria_autorizada: e.target.checked})} />
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer p-3 border rounded-lg hover:bg-gray-50 transition flex-1">
-                    <input type="checkbox" className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                        checked={form.tiene_padron_beneficiarios} onChange={e => setForm({...form, tiene_padron_beneficiarios: e.target.checked})} />
-                    <span className="text-sm font-medium text-gray-700 flex items-center gap-1"><Users size={16} className="text-green-500"/> Padrón</span>
+                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
+                    <div className="bg-green-100 p-2 rounded-full text-green-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
+                        <Users size={20} />
+                    </div>
+                    <div className="flex-1">
+                        <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Padrón</span>
+                    </div>
+                    <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.tiene_padron_beneficiarios} onChange={e => setForm({...form, tiene_padron_beneficiarios: e.target.checked})} />
                 </label>
             </div>
 
-            <div className="flex justify-end gap-3 border-t pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition">Cancelar</button>
-                <button type="submit" className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-transform active:scale-95">
+            <div className="flex justify-end gap-3 border-t pt-6 border-[#c0c6b6]/30">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all">Cancelar</button>
+                <button type="submit" className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-all transform active:scale-95 flex items-center gap-2">
+                    <CheckCircle size={20}/>
                     {isEditing ? "Guardar Cambios" : "Registrar IAP"}
                 </button>
             </div>

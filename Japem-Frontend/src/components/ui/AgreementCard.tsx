@@ -1,5 +1,5 @@
 import { type FC } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Handshake, Calendar, CheckCircle } from "lucide-react";
 
 interface Agreement {
   id: number;
@@ -15,40 +15,61 @@ interface AgreementCardProps {
 }
 
 export const AgreementCard: FC<AgreementCardProps> = ({ agreement, onDelete, onToggle }) => (
-  <div className="bg-white border border-gray-100 p-4 rounded-xl shadow-sm hover:shadow-md transition flex justify-between items-start group">
+  <div className="group bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-lg hover:shadow-emerald-100 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
     
-    {/* Contenido del Acuerdo */}
-    <div className="flex flex-col gap-2 flex-1 pr-4">
-      <h3 className="font-semibold text-gray-800">{agreement.title}</h3>
-      <p className="text-sm text-gray-600 line-clamp-2">{agreement.description}</p>
-      {/* Etiqueta de fecha en verde */}
-      <span className="text-xs font-medium text-green-700 bg-green-50 py-1 px-2 rounded-full w-fit">
-        {agreement.date}
-      </span>
-    </div>
+    {/* Decoración de fondo sutil */}
+    <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>
 
-    {/* Botones de Acción */}
-    <div className="flex flex-col items-center gap-3 mt-1">
-      {/* Palomita con acento verde */}
-      {onToggle && (
-        <input 
-          type="checkbox" 
-          onChange={onToggle}
-          className="w-5 h-5 cursor-pointer accent-green-700 border-gray-300 rounded focus:ring-green-500"
-          title="Marcar como completado"
-        />
-      )}
+    <div className="flex items-start gap-4 relative z-10">
+      
+      {/* Icono Principal */}
+      <div className="bg-emerald-100 p-3 rounded-xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors shadow-sm">
+        <Handshake size={24} />
+      </div>
 
-      {/* Botón Eliminar */}
-      {onDelete && (
-        <button 
-          onClick={() => onDelete(agreement.id)}
-          className="text-gray-300 hover:text-red-500 transition opacity-0 group-hover:opacity-100"
-          title="Eliminar acuerdo"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-start">
+            <h3 className="font-bold text-gray-800 text-lg truncate pr-2">{agreement.title}</h3>
+            
+            {/* Botón Eliminar (Aparece con el grupo) */}
+            {onDelete && (
+                <button 
+                onClick={() => onDelete(agreement.id)}
+                className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                title="Eliminar acuerdo"
+                >
+                <Trash2 size={18} />
+                </button>
+            )}
+        </div>
+
+        <p className="text-sm text-gray-500 mt-1 line-clamp-2 leading-relaxed">
+            {agreement.description}
+        </p>
+
+        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-50">
+            {/* Etiqueta de Fecha */}
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 py-1.5 px-3 rounded-lg">
+                <Calendar size={14} />
+                {agreement.date}
+            </span>
+
+            {/* Checkbox de Completar */}
+            {onToggle && (
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400 hover:text-emerald-600 transition-colors">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity font-medium">Completar</span>
+                    <div className="relative">
+                        <input 
+                            type="checkbox" 
+                            onChange={onToggle}
+                            className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded-md checked:bg-emerald-500 checked:border-emerald-500 transition-all cursor-pointer"
+                        />
+                        <CheckCircle size={14} className="absolute top-0.5 left-0.5 text-white opacity-0 peer-checked:opacity-100 pointer-events-none" />
+                    </div>
+                </label>
+            )}
+        </div>
+      </div>
     </div>
   </div>
 );
