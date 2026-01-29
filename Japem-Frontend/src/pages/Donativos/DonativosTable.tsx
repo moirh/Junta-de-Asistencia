@@ -10,6 +10,7 @@ import { getDonativos, createDonativo } from "../../services/donativosService";
 import { getDonantes } from "../../services/donantesService";
 import { getInventario } from "../../services/inventarioService";
 import type { Donativo, Donante } from "../../types";
+import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
 
 interface ProductoReferencia {
   nombre: string;
@@ -55,13 +56,10 @@ export const DonativosTable = () => {
       setDonativos(Array.isArray(donativosData) ? donativosData : []);
       setDonantes(Array.isArray(donantesData) ? donantesData : []);
       
-      // --- LÓGICA CORREGIDA PARA EL CATÁLOGO ---
       const mapaUnicos = new Map();
 
-      // Función auxiliar para registrar productos en el mapa
       const registrarProducto = (nombre: string, item: any) => {
          if (!nombre) return;
-         // Si ya existe, no lo sobrescribimos (priorizamos el inventario actual si existe)
          if (!mapaUnicos.has(nombre)) {
             mapaUnicos.set(nombre, {
                nombre: nombre,
@@ -72,15 +70,12 @@ export const DonativosTable = () => {
          }
       };
 
-      // 1. PRIMERO: Agregamos lo que hay en INVENTARIO (Stock > 0)
       if (Array.isArray(inventarioData)) {
         inventarioData.forEach((item: any) => {
            registrarProducto(item.nombre_producto, item);
         });
       }
 
-      // 2. SEGUNDO (CORRECCIÓN): Agregamos el HISTÓRICO de donativos
-      // Esto asegura que si "Arroz" ya no está en inventario, se recupere de aquí.
       if (Array.isArray(donativosData)) {
          donativosData.forEach((d: any) => {
             if (d.detalles && Array.isArray(d.detalles)) {
@@ -175,20 +170,60 @@ export const DonativosTable = () => {
     return cat.includes("ALIMENT") || cat.includes("MEDICAMENT") || cat.includes("FARMACIA") || cat.includes("PERECEDERO");
   };
 
+  // ==========================================
+  // LÓGICA DE GUARDAR (MEJORADA CON SWAL)
+  // ==========================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.donante_id === 0) { alert("Selecciona un donante"); return; }
-    if (formData.detalles.length === 0) { alert("Agrega al menos un producto"); return; }
+    
+    // Validación 1: Donante no seleccionado
+    if (formData.donante_id === 0) { 
+        Swal.fire({
+            title: 'Faltan datos',
+            text: 'Por favor selecciona un donante antes de guardar.',
+            icon: 'warning',
+            confirmButtonColor: '#719c44'
+        });
+        return; 
+    }
+
+    // Validación 2: Sin productos
+    if (formData.detalles.length === 0) { 
+        Swal.fire({
+            title: 'Sin productos',
+            text: 'Debes agregar al menos un producto al inventario.',
+            icon: 'warning',
+            confirmButtonColor: '#719c44'
+        });
+        return; 
+    }
 
     try {
       const totalGlobal = formData.detalles.reduce((sum, item) => sum + (item.monto_deducible_total || 0), 0);
       await createDonativo({ ...formData, monto_total_deducible: totalGlobal }); 
+      
+      // ALERTA DE ÉXITO
+      Swal.fire({
+        title: '¡Entrada Registrada!',
+        text: 'El donativo y los productos se han guardado correctamente.',
+        icon: 'success',
+        confirmButtonColor: '#719c44',
+        confirmButtonText: 'Excelente'
+      });
+
       setIsModalOpen(false);
       setFormData(initialFormState);
       fetchData(); 
     } catch (error) {
       console.error("Error:", error);
-      alert("Error al guardar.");
+      
+      // ALERTA DE ERROR
+      Swal.fire({
+        title: 'Error',
+        text: 'Hubo un problema al guardar la entrada. Inténtalo de nuevo.',
+        icon: 'error',
+        confirmButtonColor: '#353131'
+      });
     }
   };
 

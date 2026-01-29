@@ -15,7 +15,7 @@ interface AgreementCardProps {
 }
 
 export const AgreementCard: FC<AgreementCardProps> = ({ agreement, onDelete, onToggle }) => (
-  <div className="group bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-lg hover:shadow-emerald-100 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+  <div className="group bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-lg hover:shadow-emerald-100 hover:-translate-y-1 transition-all duration-500 relative overflow-hidden">
     
     {/* Decoración de fondo sutil */}
     <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50 rounded-bl-full -mr-4 -mt-4 opacity-50 group-hover:scale-110 transition-transform"></div>

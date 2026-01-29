@@ -5,15 +5,27 @@ namespace App\Http\Controllers;
 use App\Models\Recordatorio;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class RecordatorioController extends Controller
 {
     public function index()
     {
-        // 1. AUTO-ELIMINAR: Borra recordatorios vencidos (ayer o antes)
-        Recordatorio::where('date', '<', Carbon::now()->toDateString())->delete();
+        $userId = Auth::id();
 
-        return response()->json(Recordatorio::orderBy('date', 'asc')->get());
+        // 1. AUTO-ELIMINAR: Borra recordatorios vencidos (ayer o antes)
+        // OJO: Agregamos "where('user_id', $userId)" para que solo borre MIS vencidos,
+        // no los de otros usuarios.
+        Recordatorio::where('user_id', $userId)
+            ->where('date', '<', Carbon::now()->toDateString())
+            ->delete();
+
+        // 2. FILTRAR: Solo devolvemos los recordatorios de ESTE usuario
+        return response()->json(
+            Recordatorio::where('user_id', $userId)
+                ->orderBy('date', 'asc')
+                ->get()
+        );
     }
 
     public function store(Request $request)
@@ -23,30 +35,41 @@ class RecordatorioController extends Controller
             'date' => 'required|date',
         ]);
 
-        $recordatorio = Recordatorio::create($validated);
+        // Tu lógica estaba perfecta aquí
+        $recordatorio = Recordatorio::create([
+            'title' => $validated['title'],
+            'date' => $validated['date'],
+            'user_id' => Auth::id(), // Asignamos el dueño
+            'done' => false // Valor por defecto
+        ]);
+
         return response()->json($recordatorio, 201);
     }
 
     public function update(Request $request, $id)
     {
-        $recordatorio = Recordatorio::findOrFail($id);
-        
+        // SEGURIDAD: Buscamos el recordatorio PERO verificamos que sea del usuario.
+        // Si el ID existe pero es de otro usuario, fallará (ModelNotFound).
+        $recordatorio = Recordatorio::where('user_id', Auth::id())
+            ->findOrFail($id);
+
         // 2. AUTO-ELIMINAR POR PALOMITA
-        // Si el usuario envía 'done' como true, borramos el registro
         if ($request->boolean('done')) {
             $recordatorio->delete();
-            // Retornamos 204 No Content para indicar que se eliminó
-            return response()->json(null, 204); 
+            return response()->json(null, 204);
         }
-        
-        // Si no es 'done' (ej. editar título), actualizamos normal
+
+        // Actualización normal
         $recordatorio->update($request->all());
         return response()->json($recordatorio);
     }
 
     public function destroy($id)
     {
-        $recordatorio = Recordatorio::findOrFail($id);
+        // SEGURIDAD: Solo borrar si me pertenece
+        $recordatorio = Recordatorio::where('user_id', Auth::id())
+            ->findOrFail($id);
+
         $recordatorio->delete();
         return response()->json(null, 204);
     }

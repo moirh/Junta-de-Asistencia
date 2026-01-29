@@ -9,14 +9,17 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+    public function up()
     {
-        Schema::create('catalogo_productos', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+        // Agregamos esta validación:
+        if (!Schema::hasTable('catalogo_productos')) {
+            Schema::create('catalogo_productos', function (Blueprint $table) {
+                $table->id();
+                // ... tus columnas ...
+                $table->timestamps();
+            });
+        }
     }
-
     /**
      * Reverse the migrations.
      */

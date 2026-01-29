@@ -3,6 +3,7 @@ import { FileText, Package, Truck, CheckCircle, Clock, MapPin, UserCheck, Calend
 import { Modal } from "../../components/ui/Modal";
 import { Table } from "../../components/ui/Table";
 import { getHistorialEntregas, confirmarEntrega } from "../../services/entregasService";
+import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
 
 interface EntregaItem {
   id: number;
@@ -47,11 +48,21 @@ export const Entrega = () => {
     setIsModalOpen(true);
   };
 
+  // ==========================================
+  // LÓGICA CONFIRMAR ENTREGA (CON SWAL)
+  // ==========================================
   const handleConfirmar = async (e: React.FormEvent) => {
     e.preventDefault(); 
     if (!selectedEntrega) return;
+    
+    // Validación
     if (!form.responsable_entrega.trim()) {
-      alert("Por favor escribe el nombre del responsable.");
+      Swal.fire({
+        title: 'Faltan datos',
+        text: 'Por favor escribe el nombre de la persona responsable de la entrega.',
+        icon: 'warning',
+        confirmButtonColor: '#719c44'
+      });
       return;
     }
 
@@ -62,16 +73,39 @@ export const Entrega = () => {
         lugar_entrega: form.lugar_entrega
       });
       
+      // Mensaje de Éxito
+      Swal.fire({
+        title: '¡Entrega Registrada!',
+        text: 'La salida de almacén se ha confirmado correctamente.',
+        icon: 'success',
+        confirmButtonColor: '#719c44',
+        confirmButtonText: 'Excelente'
+      });
+
       setIsModalOpen(false);
       cargarDatos(); 
+
     } catch (error) {
       console.error(error);
-      alert("Error al registrar la entrega.");
+      // Mensaje de Error
+      Swal.fire({
+        title: 'Error',
+        text: 'Hubo un problema al registrar la entrega. Inténtalo de nuevo.',
+        icon: 'error',
+        confirmButtonColor: '#353131'
+      });
     }
   };
 
   const handleVerVale = (id: number) => {
-    alert(`Generando vale PDF para folio #${id}...`);
+    Swal.fire({
+        title: 'Generando Vale...',
+        text: `Procesando documento PDF para el folio #${id}`,
+        icon: 'info',
+        timer: 2000,
+        showConfirmButton: false,
+        timerProgressBar: true
+    });
   };
 
   const columns = [

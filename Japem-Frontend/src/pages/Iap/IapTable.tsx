@@ -6,6 +6,7 @@ import {
 import { Table } from "../../components/ui/Table";
 import { Modal } from "../../components/ui/Modal";
 import axios from "axios";
+import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
 
 const API_URL = "http://127.0.0.1:8000/api";
 
@@ -70,6 +71,9 @@ export const IapTable = () => {
     }
   };
 
+  // ==========================================
+  // LÓGICA DE GUARDAR (CON SWEETALERT)
+  // ==========================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -78,19 +82,79 @@ export const IapTable = () => {
 
       if (isEditing && form.id) {
         await axios.put(`${API_URL}/iaps/${form.id}`, form, { headers });
-        alert("✅ IAP actualizada correctamente");
+        
+        // Alerta Éxito Edición
+        Swal.fire({
+            title: '¡Actualizada!',
+            text: 'La información de la IAP se actualizó correctamente.',
+            icon: 'success',
+            confirmButtonColor: '#719c44',
+            confirmButtonText: 'Aceptar'
+        });
+
       } else {
         await axios.post(`${API_URL}/iaps`, form, { headers });
-        alert("✅ IAP registrada correctamente");
+        
+        // Alerta Éxito Registro
+        Swal.fire({
+            title: '¡Registrada!',
+            text: 'La nueva IAP ha sido agregada al padrón.',
+            icon: 'success',
+            confirmButtonColor: '#719c44',
+            confirmButtonText: 'Excelente'
+        });
       }
       
       setIsModalOpen(false);
       fetchIaps();
       setForm(initialForm);
       setIsEditing(false);
+
     } catch (error) {
       console.error(error);
-      alert("Error al guardar la IAP.");
+      // Alerta Error
+      Swal.fire({
+        title: 'Error',
+        text: 'Hubo un problema al guardar la IAP. Verifica los datos.',
+        icon: 'error',
+        confirmButtonColor: '#353131'
+      });
+    }
+  };
+
+  // ==========================================
+  // LÓGICA DE ELIMINAR (CON SWEETALERT)
+  // ==========================================
+  const handleDelete = async (id: number) => {
+    const result = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: "Se eliminará esta IAP del padrón y su historial.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            const token = localStorage.getItem('token');
+            await axios.delete(`${API_URL}/iaps/${id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            Swal.fire({
+                title: '¡Eliminado!',
+                text: 'El registro ha sido eliminado correctamente.',
+                icon: 'success',
+                confirmButtonColor: '#719c44'
+            });
+
+            fetchIaps();
+        } catch (error) {
+            Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
+        }
     }
   };
 
@@ -104,19 +168,6 @@ export const IapTable = () => {
     setForm(initialForm);
     setIsEditing(false);
     setIsModalOpen(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm("¿Estás seguro de eliminar esta IAP?")) return;
-    try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/iaps/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      fetchIaps();
-    } catch (error) {
-      alert("Error al eliminar");
-    }
   };
 
   const filteredIaps = iaps.filter(iap => 
@@ -333,18 +384,13 @@ export const IapTable = () => {
                             </select>
                     </div>
                     
-                    {/* AQUÍ ESTÁ EL INPUT CORREGIDO */}
                     <div>
                         <label className="text-xs font-bold text-[#353131] block mb-1">Población (Cant.)</label>
                         <input 
                             type="number" 
                             min="0" 
                             className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" 
-                            
-                            // 1. Mostrar vacío si es 0
                             value={form.personas_beneficiadas === 0 ? "" : form.personas_beneficiadas} 
-                            
-                            // 2. Guardar 0 si el input queda vacío
                             onChange={e => setForm({...form, personas_beneficiadas: e.target.value === "" ? 0 : Number(e.target.value)})} 
                         />
                     </div>

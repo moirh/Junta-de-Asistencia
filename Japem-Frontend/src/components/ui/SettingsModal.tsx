@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
-  User, Database, Shield, Save, Plus, Trash2, 
-  List, Tag, Lock, Mail, Camera, Ruler 
+  User, Shield, Save, Plus, Trash2, Lock, Mail, Loader2, XCircle, AtSign, Settings, Edit2 // <--- 1. Agregado Edit2
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
+import { 
+  getUsers, createUser, deleteUser, updateProfile, changePassword, getProfile, updateUser // <--- 2. Agregado updateUser
+} from "../../services/settingsService"; 
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,171 +13,283 @@ interface SettingsModalProps {
 }
 
 export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
-  const [activeTab, setActiveTab] = useState<'perfil' | 'catalogos' | 'usuarios'>('perfil');
-  const [activeCatalog, setActiveCatalog] = useState<'rubros' | 'categorias' | 'unidades'>('rubros');
+  const [activeTab, setActiveTab] = useState<'perfil' | 'usuarios'>('perfil');
+  const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(false);
 
-  // --- 1. PESTAÑA PERFIL ---
-  const ProfileTab = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-        {/* Encabezado del Perfil */}
-        <div className="flex items-center gap-6 p-4 bg-[#f9fafb] rounded-2xl border border-[#c0c6b6]/50">
-            <div className="relative group cursor-pointer">
-                <div className="w-20 h-20 rounded-full bg-white border-2 border-[#719c44] p-1 shadow-sm">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=JapemAdmin" alt="Avatar" className="w-full h-full rounded-full" />
-                </div>
-                <div className="absolute bottom-0 right-0 bg-[#353131] text-white p-1.5 rounded-full hover:bg-[#719c44] transition-colors">
-                    <Camera size={12} />
-                </div>
-            </div>
-            <div>
-                <h3 className="font-bold text-lg text-[#353131]">Administrador General</h3>
-                <p className="text-sm text-[#817e7e]">admin@japem.gob.mx</p>
-                <span className="inline-block mt-2 text-[10px] bg-[#f2f5f0] text-[#719c44] px-2 py-0.5 rounded-full font-bold border border-[#c0c6b6]">
-                    Rol: Super Admin
-                </span>
-            </div>
-        </div>
+  // --- ESTADO PERFIL ---
+  const [profileData, setProfileData] = useState({ 
+      id: 0, name: '', email: '', username: '', role: '', currentPass: '', newPass: '' 
+  });
+  
+  // --- ESTADO USUARIOS ---
+  const [users, setUsers] = useState<any[]>([]);
+  const [showUserForm, setShowUserForm] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null); // <--- 3. Nuevo estado para saber si editamos
+  const [newUser, setNewUser] = useState({ 
+      name: '', username: '', email: '', password: '', role: '' 
+  });
 
-        {/* Formulario */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-[#353131] ml-1">Nombre Completo</label>
-                <div className="relative">
-                    <User size={16} className="absolute left-3 top-3 text-[#c0c6b6]" />
-                    <input type="text" defaultValue="Admin JAPEM" className="w-full pl-9 pr-4 py-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44] focus:ring-4 focus:ring-[#719c44]/10 transition-all text-[#353131]" />
-                </div>
-            </div>
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-[#353131] ml-1">Correo Electrónico</label>
-                <div className="relative">
-                    <Mail size={16} className="absolute left-3 top-3 text-[#c0c6b6]" />
-                    <input type="email" defaultValue="admin@japem.gob.mx" className="w-full pl-9 pr-4 py-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44] focus:ring-4 focus:ring-[#719c44]/10 transition-all text-[#353131]" />
-                </div>
-            </div>
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-[#353131] ml-1">Contraseña Actual</label>
-                <div className="relative">
-                    <Lock size={16} className="absolute left-3 top-3 text-[#c0c6b6]" />
-                    <input type="password" placeholder="••••••••" className="w-full pl-9 pr-4 py-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44] focus:ring-4 focus:ring-[#719c44]/10 transition-all text-[#353131]" />
-                </div>
-            </div>
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-[#353131] ml-1">Nueva Contraseña</label>
-                <div className="relative">
-                    <Lock size={16} className="absolute left-3 top-3 text-[#c0c6b6]" />
-                    <input type="password" placeholder="••••••••" className="w-full pl-9 pr-4 py-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44] focus:ring-4 focus:ring-[#719c44]/10 transition-all text-[#353131]" />
-                </div>
-            </div>
-        </div>
+  // --- CARGA INICIAL ---
+  useEffect(() => {
+    if (isOpen) {
+        setActiveTab('perfil'); 
+        loadMyProfile();
+    }
+  }, [isOpen]);
 
-        <div className="flex justify-end pt-4 border-t border-[#c0c6b6]/30">
-            <button className="bg-[#719c44] hover:bg-[#5e8239] text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-[#719c44]/20 flex items-center gap-2 transition-transform active:scale-95">
-                <Save size={18} /> Guardar Perfil
-            </button>
-        </div>
-    </div>
-  );
+  useEffect(() => {
+    if (activeTab === 'usuarios' && isOpen) {
+        if (profileData.role === 'admin') {
+            loadUsersList();
+        } else {
+            setActiveTab('perfil');
+        }
+    }
+  }, [activeTab, isOpen, profileData.role]);
 
-  // --- 2. PESTAÑA CATÁLOGOS ---
-  const CatalogsTab = () => {
-    const catalogData = {
-        rubros: ["Salud", "Educación", "Discapacidad", "Ancianos", "Desarrollo Social"],
-        categorias: ["Alimentos", "Medicamentos", "Ropa", "Juguetes", "Mobiliario"],
-        unidades: ["PZA", "KG", "LITRO", "CAJA", "PAQUETE", "LOTE"]
-    };
-    const currentList = catalogData[activeCatalog];
 
-    return (
-        <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4">
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                <button onClick={() => setActiveCatalog('rubros')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeCatalog === 'rubros' ? 'bg-[#353131] text-white' : 'bg-[#f2f5f0] text-[#817e7e] hover:bg-[#c0c6b6] hover:text-[#353131]'}`}>
-                    <List size={14}/> Rubros IAP
-                </button>
-                <button onClick={() => setActiveCatalog('categorias')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeCatalog === 'categorias' ? 'bg-[#353131] text-white' : 'bg-[#f2f5f0] text-[#817e7e] hover:bg-[#c0c6b6] hover:text-[#353131]'}`}>
-                    <Tag size={14}/> Categorías
-                </button>
-                <button onClick={() => setActiveCatalog('unidades')} className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${activeCatalog === 'unidades' ? 'bg-[#353131] text-white' : 'bg-[#f2f5f0] text-[#817e7e] hover:bg-[#c0c6b6] hover:text-[#353131]'}`}>
-                    <Ruler size={14}/> Unidades
-                </button>
-            </div>
-
-            <div className="bg-[#f9fafb] border border-[#c0c6b6]/50 rounded-xl p-4 flex-1 flex flex-col min-h-0">
-                <div className="flex gap-2 mb-4">
-                    <input type="text" placeholder={`Agregar a ${activeCatalog}...`} className="flex-1 px-4 py-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44] focus:ring-4 focus:ring-[#719c44]/10 text-[#353131]" />
-                    <button className="bg-[#719c44] hover:bg-[#5e8239] text-white p-2.5 rounded-xl transition-colors shadow-md"><Plus size={20} /></button>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                    {currentList.map((item, idx) => (
-                        <div key={idx} className="group flex justify-between items-center bg-white p-3 rounded-xl border border-[#e5e7eb] hover:border-[#719c44] transition-all hover:shadow-sm">
-                            <span className="text-sm font-medium text-[#353131] pl-2">{item}</span>
-                            <button className="text-[#c0c6b6] hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100"><Trash2 size={16}/></button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
+  const loadMyProfile = async () => {
+    setDataLoading(true);
+    try {
+        const data = await getProfile();
+        const roleNormalized = (data.role || 'editor').toLowerCase();
+        
+        setProfileData(prev => ({ 
+            ...prev, 
+            ...data, 
+            role: roleNormalized 
+        }));
+        
+        localStorage.setItem("user", JSON.stringify(data));
+    } catch (e) { console.error(e); } 
+    finally { setDataLoading(false); }
   };
 
-  // --- 3. PESTAÑA USUARIOS ---
-  const UsersTab = () => (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col">
-        <div className="flex justify-between items-center">
-            <h3 className="font-bold text-[#353131]">Gestión de Usuarios</h3>
-            <button className="text-xs bg-[#719c44] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 hover:bg-[#5e8239] transition">
-                <Plus size={14}/> Nuevo
-            </button>
-        </div>
-        <div className="flex-1 overflow-y-auto border border-[#c0c6b6]/30 rounded-xl">
-            <table className="w-full text-left text-sm">
-                <thead className="bg-[#f2f5f0] text-[#817e7e] font-bold text-xs uppercase sticky top-0">
-                    <tr><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3 text-center">Acción</th></tr>
-                </thead>
-                <tbody className="divide-y divide-[#f2f5f0]">
-                    <tr className="hover:bg-[#f9fafb]">
-                        <td className="p-3 font-medium text-[#353131]">admin@japem.gob.mx</td>
-                        <td className="p-3"><span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-md font-bold text-xs">Admin</span></td>
-                        <td className="p-3 text-center text-[#c0c6b6]"><Lock size={14} className="mx-auto"/></td>
-                    </tr>
-                    <tr className="hover:bg-[#f9fafb]">
-                        <td className="p-3 font-medium text-[#353131]">operador@japem.gob.mx</td>
-                        <td className="p-3"><span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-md font-bold text-xs">Editor</span></td>
-                        <td className="p-3 text-center"><button className="text-[#817e7e] hover:text-red-500"><Trash2 size={16} className="mx-auto"/></button></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-xl flex gap-3 items-start">
-            <Shield className="text-yellow-600 shrink-0 mt-0.5" size={18} />
-            <p className="text-xs text-yellow-800">El rol <strong>Admin</strong> tiene acceso total. Asignar con precaución.</p>
-        </div>
-    </div>
-  );
+  const loadUsersList = async () => {
+    try {
+      const data = await getUsers();
+      setUsers(Array.isArray(data) ? data : (data.data || []));
+    } catch (e) { console.error(e); } 
+  };
+
+  const handleSaveProfile = async () => {
+    setLoading(true);
+    try {
+      if (profileData.name || profileData.email) {
+          await updateProfile({ name: profileData.name, email: profileData.email });
+          loadMyProfile(); 
+      }
+      if (profileData.currentPass && profileData.newPass) {
+          await changePassword({ current_password: profileData.currentPass, new_password: profileData.newPass });
+          setProfileData(prev => ({ ...prev, currentPass: '', newPass: '' }));
+      }
+      alert("Perfil actualizado correctamente");
+    } catch (e: any) { 
+      alert("Error: " + (e.response?.data?.message || "Verifique sus datos"));
+    } finally { setLoading(false); }
+  };
+
+  // --- 4. LÓGICA UNIFICADA (CREAR / EDITAR) ---
+  const handleSaveUser = async () => { // Renombrado de handleCreateUser a handleSaveUser
+    // Validación: Si editamos, el password es opcional. Si creamos, es obligatorio.
+    if(!newUser.username || !newUser.role || (!editingId && !newUser.password)) return alert("Faltan campos");
+    
+    setLoading(true);
+    try {
+      if (editingId) {
+          // MODO EDICIÓN
+          const updated = await updateUser(editingId, newUser);
+          // Actualizamos la lista local mapeando
+          setUsers(users.map(u => u.id === editingId ? updated.user : u)); // Asumiendo que backend devuelve { user: ... }
+          alert("Usuario actualizado");
+      } else {
+          // MODO CREACIÓN
+          const created = await createUser(newUser);
+          setUsers([...users, created]);
+      }
+      
+      // Limpieza
+      setShowUserForm(false);
+      setEditingId(null);
+      setNewUser({ name: '', username: '', email: '', password: '', role: '' });
+      loadUsersList(); // Recarga por seguridad
+    } catch (e: any) { 
+        alert("Error: " + (e.response?.data?.message || "Ocurrió un error"));
+    } finally { setLoading(false); }
+  };
+
+  // --- 5. FUNCIONES AUXILIARES DE EDICIÓN ---
+  const startEditing = (user: any) => {
+      setNewUser({
+          name: user.name,
+          username: user.username,
+          email: user.email || '',
+          role: user.role,
+          password: '' // Contraseña vacía al editar (opcional)
+      });
+      setEditingId(user.id);
+      setShowUserForm(true);
+  };
+
+  const cancelForm = () => {
+      setShowUserForm(false);
+      setEditingId(null);
+      setNewUser({ name: '', username: '', email: '', password: '', role: '' });
+  };
+
+  const handleDeleteUser = async (id: number) => {
+    if (id === profileData.id) return alert("No puedes eliminarte a ti mismo.");
+    if(!confirm("¿Eliminar?")) return;
+    try {
+      await deleteUser(id);
+      setUsers(users.filter(u => u.id !== id));
+    } catch (e) { console.error(e); }
+  };
 
   return (
-    // IMPORTANTE: Asegúrate de que tu componente Modal (ui/Modal.tsx) tenga z-[100]
-    <Modal isOpen={isOpen} onClose={onClose} title="Configuración del Sistema" size="extraLarge" variant="japem" icon={<Database />}>
+    <Modal isOpen={isOpen} onClose={onClose} title="Configuración del Sistema" size="extraLarge" variant="japem" icon={<Settings />}>
         <div className="flex flex-col lg:flex-row h-[550px] bg-white rounded-b-xl overflow-hidden">
-            {/* Sidebar */}
+            
+            {/* --- SIDEBAR --- */}
             <div className="lg:w-64 bg-[#f9fafb] border-r border-[#e5e7eb] p-4 flex flex-col gap-2">
-                <button onClick={() => setActiveTab('perfil')} className={`text-left px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-3 transition-all ${activeTab === 'perfil' ? 'bg-[#719c44] text-white shadow-md shadow-[#719c44]/20' : 'text-[#817e7e] hover:bg-[#e5e7eb] hover:text-[#353131]'}`}>
+                <button onClick={() => setActiveTab('perfil')} className={`text-left px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-3 transition-all ${activeTab === 'perfil' ? 'bg-[#719c44] text-white' : 'text-[#817e7e] hover:bg-[#e5e7eb]'}`}>
                     <User size={18} /> Mi Perfil
                 </button>
-                <button onClick={() => setActiveTab('catalogos')} className={`text-left px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-3 transition-all ${activeTab === 'catalogos' ? 'bg-[#719c44] text-white shadow-md shadow-[#719c44]/20' : 'text-[#817e7e] hover:bg-[#e5e7eb] hover:text-[#353131]'}`}>
-                    <Database size={18} /> Catálogos
-                </button>
-                <button onClick={() => setActiveTab('usuarios')} className={`text-left px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-3 transition-all ${activeTab === 'usuarios' ? 'bg-[#719c44] text-white shadow-md shadow-[#719c44]/20' : 'text-[#817e7e] hover:bg-[#e5e7eb] hover:text-[#353131]'}`}>
-                    <Shield size={18} /> Usuarios
-                </button>
+
+                {profileData.role === 'admin' && (
+                    <button onClick={() => setActiveTab('usuarios')} className={`text-left px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-3 transition-all ${activeTab === 'usuarios' ? 'bg-[#719c44] text-white' : 'text-[#817e7e] hover:bg-[#e5e7eb]'}`}>
+                        <Shield size={18} /> Usuarios
+                    </button>
+                )}
+
                 <div className="mt-auto pt-4 border-t border-[#e5e7eb]">
+                    <div className="flex items-center gap-2 mb-2 px-2">
+                          <div className={`w-2 h-2 rounded-full ${profileData.role === 'admin' ? 'bg-purple-500' : 'bg-blue-500'}`}></div>
+                          <span className="text-[10px] font-bold text-[#817e7e] uppercase">{profileData.role}</span>
+                    </div>
                     <p className="text-[10px] text-center text-[#c0c6b6] uppercase font-bold tracking-widest">JAPEM v1.2.0</p>
                 </div>
             </div>
-            {/* Contenido */}
+
+            {/* --- CONTENIDO --- */}
             <div className="flex-1 p-6 overflow-y-auto">
-                {activeTab === 'perfil' && <ProfileTab />}
-                {activeTab === 'catalogos' && <CatalogsTab />}
-                {activeTab === 'usuarios' && <UsersTab />}
+                {dataLoading ? <div className="flex justify-center h-full items-center"><Loader2 className="animate-spin text-[#719c44]"/></div> : (
+                <>
+                {/* 1. CONTENIDO PERFIL */}
+                {activeTab === 'perfil' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                        <div className="flex items-center gap-6 p-4 bg-[#f9fafb] rounded-2xl border border-[#c0c6b6]/50">
+                            <div className="w-20 h-20 rounded-full bg-white border-2 border-[#719c44] p-1 shadow-sm overflow-hidden">
+                                <img src={`https://ui-avatars.com/api/?name=${profileData.name}&background=719c44&color=fff`} alt="Avatar" className="w-full h-full object-cover" />
+                            </div>
+                            <div>
+                                <h3 className="font-bold text-lg text-[#353131]">{profileData.name}</h3>
+                                <div className="flex items-center gap-1.5 text-sm text-[#817e7e]">
+                                    <AtSign size={14} className="text-[#719c44]"/> <span className="font-bold text-[#353131]">{profileData.username}</span>
+                                </div>
+                                <span className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full font-bold border ${profileData.role==='admin'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>
+                                    Rol: {profileData.role.toUpperCase()}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-[#353131] ml-1">Nombre</label>
+                                <input type="text" value={profileData.name} onChange={e => setProfileData({...profileData, name: e.target.value})} className="w-full p-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44]" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-[#353131] ml-1">Correo</label>
+                                <input type="email" value={profileData.email || ''} onChange={e => setProfileData({...profileData, email: e.target.value})} className="w-full p-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44]" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-[#353131] ml-1">Contraseña Actual</label>
+                                <input type="password" value={profileData.currentPass} onChange={e => setProfileData({...profileData, currentPass: e.target.value})} className="w-full p-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44]" />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-[#353131] ml-1">Nueva Contraseña</label>
+                                <input type="password" value={profileData.newPass} onChange={e => setProfileData({...profileData, newPass: e.target.value})} className="w-full p-2.5 border border-[#c0c6b6] rounded-xl text-sm outline-none focus:border-[#719c44]" />
+                            </div>
+                        </div>
+                        <div className="flex justify-end pt-4 border-t border-[#c0c6b6]/30">
+                            <button onClick={handleSaveProfile} disabled={loading} className="bg-[#719c44] hover:bg-[#5e8239] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2">
+                                {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} Guardar
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* 2. CONTENIDO USUARIOS */}
+                {activeTab === 'usuarios' && profileData.role === 'admin' && (
+                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col">
+                        <div className="flex justify-between items-center">
+                            <h3 className="font-bold text-[#353131]">Gestión de Usuarios</h3>
+                            {/* Botón Nuevo / Cancelar */}
+                            <button onClick={() => showUserForm ? cancelForm() : setShowUserForm(true)} className="text-xs bg-[#719c44] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+                                {showUserForm ? <XCircle size={14}/> : <Plus size={14}/>} {showUserForm ? "Cancelar" : "Nuevo"}
+                            </button>
+                        </div>
+                        
+                        {/* FORMULARIO UNIFICADO (CREAR / EDITAR) */}
+                        {showUserForm && (
+                            <div className="bg-[#f2f5f0] p-4 rounded-xl border border-[#c0c6b6] mb-2">
+                                <h4 className="text-xs font-bold text-[#719c44] mb-3 uppercase tracking-wider">{editingId ? "Editar Usuario" : "Nuevo Usuario"}</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                    <input type="text" placeholder="Nombre" className="p-2 border rounded-lg text-sm" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
+                                    <input type="text" placeholder="Username" className="p-2 border rounded-lg text-sm" value={newUser.username} onChange={e => setNewUser({...newUser, username: e.target.value})} />
+                                    <input type="text" placeholder="Email" className="p-2 border rounded-lg text-sm" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
+                                    <input type="password" placeholder={editingId ? "Pass (Opcional)" : "Pass (Requerido)"} className="p-2 border rounded-lg text-sm" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+                                    <div className="md:col-span-2">
+                                        <select className="w-full p-2 border rounded-lg text-sm" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                                            <option value="">Seleccionar Rol</option>
+                                            <option value="admin">Admin</option>
+                                            <option value="editor">Editor</option>
+                                            <option value="lector">Lector</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button onClick={handleSaveUser} disabled={loading} className="w-full bg-[#353131] text-white py-2 rounded-lg text-xs font-bold">
+                                    {loading ? "Procesando..." : (editingId ? "Guardar Cambios" : "Registrar")}
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="flex-1 overflow-y-auto border border-[#c0c6b6]/30 rounded-xl">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-[#f2f5f0] text-[#817e7e] font-bold text-xs uppercase sticky top-0">
+                                    <tr><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3 text-center">Acción</th></tr>
+                                </thead>
+                                <tbody className="divide-y divide-[#f2f5f0]">
+                                    {users.map((u) => (
+                                        <tr key={u.id} className="hover:bg-[#f9fafb]">
+                                            <td className="p-3">
+                                                <div className="font-bold">{u.name}</div>
+                                                <div className="text-xs text-[#719c44] font-medium">@{u.username}</div>
+                                            </td>
+                                            <td className="p-3"><span className="bg-gray-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase">{u.role}</span></td>
+                                            <td className="p-3 text-center">
+                                                <div className="flex justify-center gap-2">
+                                                    {/* Botón Editar */}
+                                                    <button onClick={() => startEditing(u)} className="text-gray-400 hover:text-blue-500" title="Editar">
+                                                        <Edit2 size={16}/>
+                                                    </button>
+                                                    {/* Botón Eliminar */}
+                                                    {u.id !== profileData.id && (
+                                                        <button onClick={() => handleDeleteUser(u.id)} className="text-gray-400 hover:text-red-500" title="Eliminar">
+                                                            <Trash2 size={16}/>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+                </>
+                )}
             </div>
         </div>
     </Modal>

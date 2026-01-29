@@ -9,6 +9,7 @@ import {
   deleteDonante 
 } from "../../services/donantesService"; 
 import type { Donante } from "../../types"; 
+import Swal from 'sweetalert2'; // Importamos SweetAlert2
 
 export default function DonantesTable() {
   const [donantes, setDonantes] = useState<Donante[]>([]);
@@ -64,31 +65,86 @@ export default function DonantesTable() {
     setFormData(initialFormState);
   };
 
+  // ==========================================
+  // LÓGICA DE GUARDAR (MEJORADA CON SWAL)
+  // ==========================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (isEditing && formData.id) {
         await updateDonante(formData.id, formData);
-        alert("✅ Donante actualizado correctamente");
+        
+        // Alerta de Éxito al Editar
+        Swal.fire({
+          title: '¡Actualizado!',
+          text: 'La información del donante se actualizó correctamente.',
+          icon: 'success',
+          confirmButtonColor: '#719c44', // Verde JAPEM
+          confirmButtonText: 'Aceptar'
+        });
+
       } else {
         await createDonante(formData);
-        alert("✅ Donante registrado correctamente");
+
+        // Alerta de Éxito al Registrar
+        Swal.fire({
+          title: '¡Registrado!',
+          text: 'El nuevo donante ha sido agregado al directorio.',
+          icon: 'success',
+          confirmButtonColor: '#719c44', // Verde JAPEM
+          confirmButtonText: 'Excelente'
+        });
       }
+      
       fetchDonantes(); 
       handleCloseModal();
+
     } catch (error) {
       console.error("Error guardando donante:", error);
-      alert("Hubo un error al guardar. Verifica los campos.");
+      
+      // Alerta de Error
+      Swal.fire({
+        title: 'Error',
+        text: 'Hubo un error al guardar. Verifica los campos obligatorios.',
+        icon: 'error',
+        confirmButtonColor: '#353131' // Gris oscuro
+      });
     }
   };
 
+  // ==========================================
+  // LÓGICA DE ELIMINAR (MEJORADA CON SWAL)
+  // ==========================================
   const handleDelete = async (id: number) => {
-    if (confirm("¿Estás seguro de eliminar este donante del directorio?")) {
+    // Preguntamos con estilo antes de borrar
+    const result = await Swal.fire({
+      title: '¿Estás seguro?',
+      text: "Se eliminará este donante del directorio permanentemente.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33', // Rojo para peligro
+      cancelButtonColor: '#3085d6', // Azul para cancelar
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    });
+
+    // Si el usuario confirma
+    if (result.isConfirmed) {
       try {
         await deleteDonante(id);
+        
+        // Confirmación de eliminado
+        Swal.fire({
+          title: '¡Eliminado!',
+          text: 'El registro ha sido eliminado.',
+          icon: 'success',
+          confirmButtonColor: '#719c44'
+        });
+
         fetchDonantes();
       } catch (error) {
         console.error("Error eliminando:", error);
+        Swal.fire('Error', 'No se pudo eliminar el registro.', 'error');
       }
     }
   };

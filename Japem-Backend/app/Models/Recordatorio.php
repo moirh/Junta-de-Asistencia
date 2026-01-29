@@ -9,15 +9,21 @@ class Recordatorio extends Model
 {
     use HasFactory;
 
-    // Autorizamos estos campos para que se puedan guardar
     protected $fillable = [
         'title', 
         'date', 
-        'done'
+        'done', 
+        'user_id' // <--- ¡IMPORTANTE! Agregar esto
     ];
-    
-    // Opcional: Indicar que 'done' debe tratarse como booleano
+
     protected $casts = [
         'done' => 'boolean',
+        'date' => 'date'
     ];
+
+    // Relación con el usuario (Opcional pero útil)
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

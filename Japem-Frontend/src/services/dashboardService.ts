@@ -2,31 +2,61 @@ import axios from 'axios';
 
 const API_URL = 'http://localhost:8000/api';
 
-// 1. Creamos una instancia de Axios configurada
+// 1. Instancia de Axios
 const api = axios.create({
     baseURL: API_URL,
 });
 
-// 2. Agregamos un "Interceptor"
-// Antes de salir, cada petición revisa si hay un token guardado y lo pega.
+// 2. Interceptor para el Token
 api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('token'); // Recuperamos el token del Login
+    const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
 });
 
-// 3. Usamos la instancia 'api' en lugar de 'axios' directo
+// ==========================================
+// DASHBOARD UNIFICADO
+// ==========================================
+export const getDashboardData = async () => {
+    const response = await api.get('/dashboard');
+    return response.data; 
+};
+
+// ==========================================
+// ACUERDOS
+// ==========================================
+
 export const getAcuerdos = async () => {
     const response = await api.get('/acuerdos');
     return response.data;
 };
 
-export const createAcuerdo = async (data: { title: string; description: string; date: string }) => {
+// CORRECCIÓN AQUÍ: Agregamos 'shared_with' (opcional) al tipo de datos
+export const createAcuerdo = async (data: { 
+    title: string; 
+    description: string; 
+    date: string;
+    shared_with?: number[]; // <--- ¡Esto faltaba!
+}) => {
     const response = await api.post('/acuerdos', data);
     return response.data;
 };
+
+export const toggleAcuerdo = async (id: number, done: boolean) => {
+    const response = await api.put(`/acuerdos/${id}`, { done });
+    return response.data;
+};
+
+export const deleteAcuerdo = async (id: number) => {
+    const response = await api.delete(`/acuerdos/${id}`);
+    return response.data;
+};
+
+// ==========================================
+// RECORDATORIOS
+// ==========================================
 
 export const getRecordatorios = async () => {
     const response = await api.get('/recordatorios');
@@ -43,23 +73,7 @@ export const toggleRecordatorio = async (id: number, done: boolean) => {
     return response.data;
 };
 
-// ... imports y otras funciones
-
-// --- FUNCIONES DE ELIMINAR ---
-
-export const deleteAcuerdo = async (id: number) => {
-    const response = await api.delete(`/acuerdos/${id}`);
-    return response.data;
-};
-
 export const deleteRecordatorio = async (id: number) => {
     const response = await api.delete(`/recordatorios/${id}`);
-    return response.data;
-};
-
-// ... tus otras funciones
-
-export const toggleAcuerdo = async (id: number, done: boolean) => {
-    const response = await api.put(`/acuerdos/${id}`, { done });
     return response.data;
 };

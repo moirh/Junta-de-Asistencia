@@ -28,7 +28,6 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
   const today = new Date();
 
-  // Cerrar tooltip si se hace clic fuera
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
@@ -53,7 +52,6 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
   };
 
   const getEventsForDay = (day: number) => {
-    // Construcción segura de fecha local para comparación de string
     const dateObj = new Date(year, month, day);
     const yearStr = dateObj.getFullYear();
     const monthStr = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -63,31 +61,32 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
     return events.filter(e => e.date === dateStr);
   };
 
-  // Determinar qué tipos de eventos existen en el día
   const getDayMarkers = (day: number) => {
     const dayEvents = getEventsForDay(day);
     const hasAcuerdo = dayEvents.some(e => e.type === 'acuerdo');
     const hasRecordatorio = dayEvents.some(e => e.type === 'recordatorio');
-    return { hasAcuerdo, hasRecordatorio, count: dayEvents.length };
+    return { hasAcuerdo, hasRecordatorio };
   };
 
   const selectedEvents = selectedDay ? getEventsForDay(selectedDay) : [];
 
   return (
-    <div className="relative bg-white rounded-2xl shadow-sm border border-gray-100 p-5 w-full h-full flex flex-col">
+    <div className="relative bg-white rounded-2xl shadow-sm border border-[#c0c6b6]/30 p-5 w-full h-full flex flex-col">
       
       {/* HEADER DEL CALENDARIO */}
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-bold capitalize text-gray-800 flex items-center gap-2">
-           <span className="bg-purple-100 text-purple-700 p-1.5 rounded-lg"><CalendarIcon size={18}/></span>
-           {monthName} <span className="text-gray-400 font-normal">{year}</span>
+        <h3 className="text-lg font-bold capitalize text-[#353131] flex items-center gap-2">
+           <span className="bg-[#f2f5f0] text-[#719c44] p-1.5 rounded-lg border border-[#c0c6b6]/30">
+             <CalendarIcon size={18}/>
+           </span>
+           {monthName} <span className="text-[#817e7e] font-normal">{year}</span>
         </h3>
         <div className="flex gap-1">
-            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-purple-600 transition-colors">
-            <ChevronLeft className="w-5 h-5" />
+            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] transition-colors">
+              <ChevronLeft className="w-5 h-5" />
             </button>
-            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-purple-600 transition-colors">
-            <ChevronRight className="w-5 h-5" />
+            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] transition-colors">
+              <ChevronRight className="w-5 h-5" />
             </button>
         </div>
       </div>
@@ -95,7 +94,7 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
       {/* DÍAS DE LA SEMANA */}
       <div className="grid grid-cols-7 mb-2">
         {daysOfWeek.map((day, i) => (
-          <div key={i} className="text-center text-xs font-bold text-gray-400 uppercase tracking-wide py-1">
+          <div key={i} className="text-center text-xs font-bold text-[#c0c6b6] uppercase tracking-wide py-1">
             {day}
           </div>
         ))}
@@ -117,12 +116,12 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
               key={day}
               onClick={() => handleSelectDay(day)}
               className={`
-                relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-medium cursor-pointer transition-all duration-200
+                relative aspect-square flex flex-col items-center justify-center rounded-xl text-sm font-bold cursor-pointer transition-all duration-200
                 ${isToday 
-                    ? "bg-purple-600 text-white shadow-md shadow-purple-200" 
+                    ? "bg-[#719c44] text-white shadow-lg shadow-[#719c44]/20 scale-105 z-10" 
                     : isSelected 
-                        ? "bg-purple-50 text-purple-700 ring-2 ring-purple-500 ring-inset" 
-                        : "hover:bg-gray-50 text-gray-700"
+                        ? "bg-[#f2f5f0] text-[#719c44] ring-2 ring-[#719c44] ring-inset" 
+                        : "hover:bg-[#f2f5f0] text-[#353131]"
                 }
               `}
             >
@@ -131,7 +130,7 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
               {/* INDICADORES DE EVENTOS */}
               <div className="flex gap-0.5 mt-1 h-1.5">
                 {hasAcuerdo && (
-                    <span className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-emerald-500'}`}></span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-[#719c44]'}`}></span>
                 )}
                 {hasRecordatorio && (
                     <span className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : 'bg-orange-500'}`}></span>
@@ -141,20 +140,20 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
           );
         })}
 
-        {/* --- TOOLTIP FLOTANTE (ESTILO GLASS) --- */}
+        {/* --- TOOLTIP FLOTANTE (ESTILO INSTITUCIONAL) --- */}
         {showTooltip && selectedDay && (
             <div 
                 ref={tooltipRef}
                 className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 z-20 animate-in zoom-in-95 duration-200"
             >
-                <div className="bg-white/95 backdrop-blur-md border border-purple-100 rounded-2xl shadow-xl overflow-hidden ring-1 ring-black/5">
+                <div className="bg-white/98 backdrop-blur-md border border-[#c0c6b6]/50 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-black/5">
                     
                     {/* Header Tooltip */}
-                    <div className="bg-gradient-to-r from-purple-50 to-white px-4 py-3 border-b border-purple-100 flex justify-between items-center">
-                        <h4 className="text-sm font-bold text-purple-900">
+                    <div className="bg-[#f2f5f0] px-4 py-3 border-b border-[#c0c6b6]/30 flex justify-between items-center">
+                        <h4 className="text-sm font-bold text-[#353131]">
                             {selectedDay} de <span className="capitalize">{monthName}</span>
                         </h4>
-                        <button onClick={() => setShowTooltip(false)} className="text-purple-300 hover:text-purple-600 transition">
+                        <button onClick={() => setShowTooltip(false)} className="text-[#c0c6b6] hover:text-red-500 transition">
                             <X size={14} />
                         </button>
                     </div>
@@ -166,25 +165,25 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
                                 {selectedEvents.map((evt, idx) => (
                                     <div key={idx} className={`p-2.5 rounded-xl border flex items-start gap-2.5 ${
                                         evt.type === 'acuerdo' 
-                                            ? 'bg-emerald-50 border-emerald-100' 
+                                            ? 'bg-[#f2f5f0] border-[#c0c6b6]/30' 
                                             : 'bg-orange-50 border-orange-100'
                                     }`}>
-                                        <div className={`mt-0.5 ${evt.type === 'acuerdo' ? 'text-emerald-600' : 'text-orange-500'}`}>
+                                        <div className={`mt-0.5 ${evt.type === 'acuerdo' ? 'text-[#719c44]' : 'text-orange-500'}`}>
                                             {evt.type === 'acuerdo' ? <Handshake size={14}/> : <Bell size={14}/>}
                                         </div>
-                                        <div>
-                                            <p className={`text-xs font-bold ${evt.type === 'acuerdo' ? 'text-emerald-800' : 'text-orange-800'}`}>
+                                        <div className="min-w-0 flex-1">
+                                            <p className={`text-[10px] font-bold uppercase tracking-wider ${evt.type === 'acuerdo' ? 'text-[#719c44]' : 'text-orange-800'}`}>
                                                 {evt.type === 'acuerdo' ? 'Acuerdo' : 'Recordatorio'}
                                             </p>
-                                            <p className="text-xs text-gray-600 leading-snug">{evt.title}</p>
+                                            <p className="text-xs text-[#353131] font-medium leading-snug break-words">{evt.title}</p>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <div className="py-6 text-center text-gray-400 flex flex-col items-center">
+                            <div className="py-6 text-center text-[#c0c6b6] flex flex-col items-center">
                                 <CalendarIcon size={24} className="mb-2 opacity-20"/>
-                                <p className="text-xs">Sin eventos programados</p>
+                                <p className="text-xs font-medium">Sin eventos programados</p>
                             </div>
                         )}
                     </div>

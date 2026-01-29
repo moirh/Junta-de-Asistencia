@@ -17,7 +17,7 @@ interface ReminderCardProps {
 export const ReminderCard: FC<ReminderCardProps> = ({ reminder, onToggle, onDelete }) => (
   <div 
     className={`
-      group p-4 rounded-xl border transition-all duration-300 hover:-translate-y-1 relative overflow-hidden
+      group p-4 rounded-xl border transition-all duration-500 hover:-translate-y-1 relative overflow-hidden
       ${reminder.done 
         ? "bg-[#f9fafb] border-[#e5e7eb] opacity-60" 
         : "bg-white border-[#c0c6b6] shadow-sm hover:shadow-md hover:shadow-[#c0c6b6]/40"

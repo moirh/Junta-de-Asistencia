@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 export const Login = () => {
-  const [email, setEmail] = useState("");
+  // 1. CAMBIO: Usamos 'username' en lugar de 'email'
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // Estado de carga visual
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -15,11 +16,12 @@ export const Login = () => {
     setIsLoading(true);
 
     try {
-      // Simulación de delay para ver la animación de carga (opcional)
-      // await new Promise(resolve => setTimeout(resolve, 1000));
+      // Simulación de delay (opcional)
+      await new Promise(resolve => setTimeout(resolve, 800));
       
+      // 2. CAMBIO: Enviamos el campo 'username' al backend
       const response = await axios.post("http://localhost:8000/api/login", {
-        email,
+        username, 
         password,
       });
 
@@ -31,115 +33,135 @@ export const Login = () => {
     } catch (err) {
       console.error(err);
       setError("Usuario o contraseña incorrectos");
-      // Efecto visual de error (sacudida) se maneja con clases CSS si se desea
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="w-full h-screen relative overflow-hidden bg-gradient-to-br from-colorPrimarioJAPEM to-colorSecundarioJAPEM font-inter">
+    <main className="w-full h-screen relative overflow-hidden bg-[#f3f4f6] font-inter">
       <div className="grid grid-cols-1 lg:grid-cols-12 h-full">
         
-        {/* PANEL IZQUIERDO: Imagen Institucional (Solo Desktop) */}
-        {/* Usamos tu imagen Japem.jpeg como fondo visual */}
+        {/* PANEL IZQUIERDO: Imagen */}
         <div className="hidden lg:block lg:col-span-7 xl:col-span-8 relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/30 z-10"></div> {/* Overlay oscuro */}
+          {/* Overlays */}
+          <div className="absolute inset-0 bg-[#353131]/20 z-10 mix-blend-multiply"></div> 
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-transparent z-10"></div>
+          
           <div 
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-[10s] hover:scale-110"
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-[30s] hover:scale-110"
             style={{ backgroundImage: "url('/Japem.jpeg')" }}
           ></div>
-          <div className="relative z-20 h-full flex flex-col justify-center px-12 text-white">
-            <h1 className="text-5xl font-bold mb-4 drop-shadow-lg animate-fade-in-up">
+
+          {/* CONTENIDO DE TEXTO - Arriba a la Izquierda */}
+          <div className="relative z-20 p-12 h-full flex flex-col justify-start pt-24">
+            {/* Título Principal */}
+            <h1 className="text-5xl font-extrabold text-white mb-4 drop-shadow-xl leading-none animate-fade-in-up">
               Juntos hacemos<br/>la diferencia
             </h1>
-            <p className="text-xl text-gray-200 max-w-lg animate-fade-in-up delay-1">
-              Plataforma de gestión para la Asistencia Privada del Estado de México.
-            </p>
           </div>
         </div>
 
         {/* PANEL DERECHO: Formulario */}
-        <div className="col-span-1 lg:col-span-5 xl:col-span-4 relative flex items-center justify-center h-full bg-white/95 backdrop-blur-xl shadow-2xl lg:rounded-l-3xl">
-          <div className="w-full max-w-md px-8 py-10">
-            
-            {/* Logo y Encabezado */}
-            <div className="text-center mb-10 animate-fade-in-up">
-              <img
-                src="/LogoVerde.jpg"
-                alt="Logo JAPEM"
-                className="h-20 mx-auto mb-4 object-contain drop-shadow-md hover:scale-105 transition-transform"
-              />
-              <h2 className="text-3xl font-extrabold text-colorPrimarioJAPEM mb-2">
-                Bienvenido
-              </h2>
-              <p className="text-gray-500 font-medium">Ingrese sus credenciales de acceso</p>
-            </div>
-
-            {/* Mensaje de Error */}
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 rounded-r shadow-sm animate-shake flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
-                <span className="font-medium">{error}</span>
-              </div>
-            )}
-
-            {/* Formulario */}
-            <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="col-span-1 lg:col-span-5 xl:col-span-4 relative flex flex-col h-full bg-white shadow-2xl lg:border-l border-[#c0c6b6]/20">
+          
+          {/* Contenido Principal */}
+          <div className="flex-1 flex items-center justify-center px-8 py-10">
+            <div className="w-full max-w-md">
               
-              <div className="form-field delay-1">
-                <label className="block text-sm font-bold text-colorPrimarioJAPEM mb-2 ml-1">
-                  Correo Electrónico
-                </label>
-                <div className="relative">
+              {/* Logo y Encabezado */}
+              <div className="text-center mb-10 animate-fade-in-up">
+                <img
+                  src="/LogoVerde.jpg"
+                  alt="Logo JAPEM"
+                  className="h-24 mx-auto mb-6 object-contain hover:scale-105 transition-transform duration-300"
+                />
+                <h2 className="text-3xl font-extrabold text-[#719c44] mb-2 tracking-tight">
+                  Bienvenido
+                </h2>
+                <p className="text-[#817e7e] font-medium text-sm">Ingrese sus credenciales para acceder al panel.</p>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium flex items-center gap-3 animate-shake">
+                  <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {error}
+                </div>
+              )}
+
+              {/* Formulario */}
+              <form onSubmit={handleSubmit} className="space-y-6">
+                
+                {/* 3. CAMBIO: Input para Username */}
+                <div className="form-field delay-1">
+                  <label className="block text-xs font-bold text-[#353131] mb-1.5 ml-1 uppercase tracking-wide">
+                    Nombre de Usuario
+                  </label>
+                  <div className="relative group">
+                    <input
+                      type="text" // Cambiado de email a text
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className="w-full px-4 py-3.5 bg-[#f9fafb] border-2 border-[#e5e7eb] rounded-xl text-[#353131] placeholder-[#c0c6b6] focus:outline-none focus:bg-white focus:border-[#719c44] focus:ring-4 focus:ring-[#719c44]/10 transition-all duration-300"
+                      placeholder="Ej. admin.japem" // Placeholder actualizado
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-field delay-2">
+                  <label className="block text-xs font-bold text-[#353131] mb-1.5 ml-1 uppercase tracking-wide">
+                    Contraseña
+                  </label>
                   <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-colorPrimarioJAPEM transition-all duration-300 shadow-sm"
-                    placeholder="usuario@japem.gob.mx"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full px-4 py-3.5 bg-[#f9fafb] border-2 border-[#e5e7eb] rounded-xl text-[#353131] placeholder-[#c0c6b6] focus:outline-none focus:bg-white focus:border-[#719c44] focus:ring-4 focus:ring-[#719c44]/10 transition-all duration-300"
+                    placeholder="••••••••"
                     required
                   />
                 </div>
-              </div>
 
-              <div className="form-field delay-2">
-                <label className="block text-sm font-bold text-colorPrimarioJAPEM mb-2 ml-1">
-                  Contraseña
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-0 focus:border-colorPrimarioJAPEM transition-all duration-300 shadow-sm"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+                <div className="form-field delay-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-3.5 px-4 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 hover:shadow-[#719c44]/50 hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#719c44] disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                        <span>Ingresando...</span>
+                      </>
+                    ) : (
+                      'Iniciar Sesión'
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
 
-              <div className="form-field delay-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-colorPrimarioJAPEM to-[#048066] text-white font-bold rounded-xl shadow-lg hover:shadow-colorPrimarioJAPEM/40 hover:translate-y-[-2px] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-colorPrimarioJAPEM disabled:opacity-70 disabled:cursor-not-allowed transition-all duration-300 transform active:scale-95"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Ingresando...
-                    </div>
-                  ) : (
-                    'Iniciar Sesión'
-                  )}
-                </button>
-              </div>
-            </form>
-
-            <div className="mt-8 text-center text-xs text-gray-400 animate-fade-in-up delay-3">
-              <p>&copy; 2025 JAPEM. Dirección General de Desarrollo Institucional.</p>
+          {/* Footer del Panel Derecho (Versión + Links) */}
+          <div className="px-8 py-5 bg-[#f9fafb] border-t border-[#e5e7eb] text-center animate-fade-in-up delay-300">
+            <div className="flex flex-col items-center gap-2">
+                {/* VERSIÓN AQUI */}
+                <span className="inline-block bg-[#e5e7eb] text-[#817e7e] px-2 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase">
+                    SIACE v1.2.0
+                </span>
+                
+                <p className="text-xs text-[#c0c6b6] font-medium">
+                  &copy; 2026 Junta de Asistencia Privada del Estado de México.
+                </p>
+                <div className="flex justify-center gap-4 mt-1">
+                  <a href="#" className="text-[10px] text-[#817e7e] hover:text-[#719c44] font-bold transition-colors uppercase tracking-wide">Aviso de Privacidad</a>
+                  <span className="text-[10px] text-[#c0c6b6]">•</span>
+                  <a href="#" className="text-[10px] text-[#817e7e] hover:text-[#719c44] font-bold transition-colors uppercase tracking-wide">Soporte Técnico</a>
+                </div>
             </div>
           </div>
         </div>

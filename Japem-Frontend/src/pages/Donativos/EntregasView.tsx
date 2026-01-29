@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Package, ArrowRight, CheckCircle, PackageOpen, Star, ShieldCheck, AlertCircle, Info } from "lucide-react";
 import axios from "axios"; 
 import { Modal } from "../../components/ui/Modal";
+import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
 
 import { getInventario, type ItemInventario } from "../../services/inventarioService";
 import { guardarAsignacion } from "../../services/distribucionService";
@@ -53,7 +54,12 @@ export const EntregasView = () => {
     } catch (error: any) {
         console.error("Error obteniendo sugerencias:", error);
         if (error.response?.status === 401) {
-            alert("Tu sesión ha expirado. Por favor inicia sesión de nuevo.");
+            Swal.fire({
+                title: 'Sesión Expirada',
+                text: 'Tu sesión ha caducado. Por favor inicia sesión de nuevo.',
+                icon: 'warning',
+                confirmButtonColor: '#719c44'
+            });
         }
     } finally {
         setLoadingMatch(false);
@@ -65,12 +71,22 @@ export const EntregasView = () => {
     setIsModalOpen(true);
   };
 
+  // ==========================================
+  // LÓGICA DE ASIGNACIÓN (CON SWEETALERT)
+  // ==========================================
   const handleConfirmAsignacion = async () => {
     if (!selectedItem || !iapSeleccionada) return;
 
     const stockDisponible = selectedItem.cantidad || 0;
+    
+    // Validación de Stock
     if (cantidadAAsignar > stockDisponible) {
-        alert(`No hay suficiente stock. Disponible: ${stockDisponible}`);
+        Swal.fire({
+            title: 'Stock Insuficiente',
+            text: `Solo tienes ${stockDisponible} unidades disponibles para asignar.`,
+            icon: 'warning',
+            confirmButtonColor: '#719c44'
+        });
         return;
     }
 
@@ -87,6 +103,15 @@ export const EntregasView = () => {
 
       await guardarAsignacion(payload);
       
+      // ALERTA DE ÉXITO
+      Swal.fire({
+        title: '¡Asignación Exitosa!',
+        text: `Se han asignado ${cantidadAAsignar} unidades a ${iapSeleccionada.nombre_iap}.`,
+        icon: 'success',
+        confirmButtonColor: '#719c44',
+        confirmButtonText: 'Excelente'
+      });
+      
       setIsModalOpen(false);
       setSelectedItem(null); 
       setSugerencias([]);
@@ -94,12 +119,19 @@ export const EntregasView = () => {
 
     } catch (error: any) {
       console.error("Error completo:", error);
+      
+      let mensajeError = "Error al conectar con el servidor.";
       if (error.response && error.response.data) {
-          const serverMessage = error.response.data.message || JSON.stringify(error.response.data);
-          alert(`Error (422): ${serverMessage}`);
-      } else {
-          alert("Error al conectar con el servidor.");
+          mensajeError = error.response.data.message || JSON.stringify(error.response.data);
       }
+
+      // ALERTA DE ERROR
+      Swal.fire({
+        title: 'Error',
+        text: mensajeError,
+        icon: 'error',
+        confirmButtonColor: '#353131'
+      });
     }
   };
 
