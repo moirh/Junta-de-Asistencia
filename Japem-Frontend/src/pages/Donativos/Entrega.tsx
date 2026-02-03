@@ -3,7 +3,7 @@ import { FileText, Package, Truck, CheckCircle, Clock, MapPin, UserCheck, Calend
 import { Modal } from "../../components/ui/Modal";
 import { Table } from "../../components/ui/Table";
 import { getHistorialEntregas, confirmarEntrega } from "../../services/entregasService";
-import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
+import Swal from 'sweetalert2'; 
 
 interface EntregaItem {
   id: number;
@@ -15,7 +15,17 @@ interface EntregaItem {
   fecha_entrega_real?: string;
 }
 
-export const Entrega = () => {
+// 1. DEFINIR INTERFAZ DE PROPS
+interface EntregaProps {
+  userRole: string; // Recibimos el rol desde el padre
+}
+
+// 2. RECIBIR LA PROP
+export const Entrega = ({ userRole }: EntregaProps) => {
+  
+  // 3. DEFINIR PERMISO DE SOLO LECTURA
+  const isReadOnly = userRole === 'lector';
+
   const [entregas, setEntregas] = useState<EntregaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,19 +53,28 @@ export const Entrega = () => {
   };
 
   const handleInitiateEntrega = (item: EntregaItem) => {
+    // PROTECCIÓN EXTRA: Si es lector, no abre modal
+    if (isReadOnly) return;
+
     setSelectedEntrega(item);
     setForm({ responsable_entrega: '', lugar_entrega: 'Oficinas JAPEM' });
     setIsModalOpen(true);
   };
 
   // ==========================================
-  // LÓGICA CONFIRMAR ENTREGA (CON SWAL)
+  // LÓGICA CONFIRMAR ENTREGA
   // ==========================================
   const handleConfirmar = async (e: React.FormEvent) => {
     e.preventDefault(); 
+    
+    // PROTECCIÓN DE ACCIÓN
+    if (isReadOnly) {
+        Swal.fire('Acceso Denegado', 'No tienes permiso para confirmar entregas.', 'error');
+        return;
+    }
+
     if (!selectedEntrega) return;
     
-    // Validación
     if (!form.responsable_entrega.trim()) {
       Swal.fire({
         title: 'Faltan datos',
@@ -73,7 +92,6 @@ export const Entrega = () => {
         lugar_entrega: form.lugar_entrega
       });
       
-      // Mensaje de Éxito
       Swal.fire({
         title: '¡Entrega Registrada!',
         text: 'La salida de almacén se ha confirmado correctamente.',
@@ -87,7 +105,6 @@ export const Entrega = () => {
 
     } catch (error) {
       console.error(error);
-      // Mensaje de Error
       Swal.fire({
         title: 'Error',
         text: 'Hubo un problema al registrar la entrega. Inténtalo de nuevo.',
@@ -188,6 +205,8 @@ export const Entrega = () => {
               }
 
               if (key === "id") {
+                // CONDICIONAL: Botón "Entregar" solo si NO es lector
+                // El botón "Vale" (historial) sí lo puede ver un lector
                 return isEntregado ? (
                   <button 
                     onClick={() => handleVerVale(row.id)}
@@ -196,12 +215,18 @@ export const Entrega = () => {
                     <FileText size={16} /> Vale
                   </button>
                 ) : (
-                  <button 
-                    onClick={() => handleInitiateEntrega(row)}
-                    className="bg-[#719c44] hover:bg-[#5e8239] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
-                  >
-                    <Package size={16} /> Entregar
-                  </button>
+                  !isReadOnly ? (
+                    <button 
+                        onClick={() => handleInitiateEntrega(row)}
+                        className="bg-[#719c44] hover:bg-[#5e8239] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
+                    >
+                        <Package size={16} /> Entregar
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-400 italic flex items-center gap-1">
+                        <UserCheck size={12}/> Solo Lectura
+                    </span>
+                  )
                 );
               }
 
@@ -211,90 +236,92 @@ export const Entrega = () => {
         </div>
       )}
 
-      {/* --- MODAL DE CONFIRMACIÓN --- */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title="Confirmar Salida de Almacén"
-        size="large"
-        variant="japem" 
-      >
-        {selectedEntrega && (
-          <form onSubmit={handleConfirmar} className="space-y-6 p-1">
-            
-            {/* Tarjeta de Resumen */}
-            <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
-              <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2 mb-4">
-                <AlertCircle size={18} /> Detalles de la Asignación
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <p className="text-xs text-[#817e7e] uppercase font-bold">Beneficiario</p>
-                    <p className="text-base font-bold text-[#353131]">{selectedEntrega.nombre_iap}</p>
-                </div>
-                <div>
-                    <p className="text-xs text-[#817e7e] uppercase font-bold">Producto a Entregar</p>
-                    <div className="flex items-center gap-2">
-                        <span className="text-base font-bold text-[#353131]">{selectedEntrega.producto_nombre}</span>
-                        <span className="bg-white text-[#719c44] px-2 py-0.5 rounded border border-[#c0c6b6] text-xs font-bold">Cant: {selectedEntrega.cantidad}</span>
+      {/* --- MODAL DE CONFIRMACIÓN (Solo renderiza si no es lector) --- */}
+      {!isReadOnly && (
+        <Modal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            title="Confirmar Salida de Almacén"
+            size="large"
+            variant="japem" 
+        >
+            {selectedEntrega && (
+            <form onSubmit={handleConfirmar} className="space-y-6 p-1">
+                
+                {/* Tarjeta de Resumen */}
+                <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
+                <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2 mb-4">
+                    <AlertCircle size={18} /> Detalles de la Asignación
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <p className="text-xs text-[#817e7e] uppercase font-bold">Beneficiario</p>
+                        <p className="text-base font-bold text-[#353131]">{selectedEntrega.nombre_iap}</p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-[#817e7e] uppercase font-bold">Producto a Entregar</p>
+                        <div className="flex items-center gap-2">
+                            <span className="text-base font-bold text-[#353131]">{selectedEntrega.producto_nombre}</span>
+                            <span className="bg-white text-[#719c44] px-2 py-0.5 rounded border border-[#c0c6b6] text-xs font-bold">Cant: {selectedEntrega.cantidad}</span>
+                        </div>
                     </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Inputs del Formulario */}
-            <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-[#353131] flex items-center gap-2">
-                        <UserCheck size={16} className="text-[#817e7e]"/> Responsable de Entrega (JAPEM) *
-                    </label>
-                    <input 
-                        type="text" 
-                        required
-                        className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]"
-                        placeholder="Nombre de quien entrega..."
-                        value={form.responsable_entrega}
-                        onChange={(e) => setForm({...form, responsable_entrega: e.target.value})}
-                    />
                 </div>
 
-                <div className="space-y-1.5">
-                    <label className="text-sm font-bold text-[#353131] flex items-center gap-2">
-                        <MapPin size={16} className="text-[#817e7e]"/> Lugar de Entrega *
-                    </label>
-                    <select 
-                        className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none bg-white text-[#353131]"
-                        value={form.lugar_entrega}
-                        onChange={(e) => setForm({...form, lugar_entrega: e.target.value})}
+                {/* Inputs del Formulario */}
+                <div className="grid grid-cols-1 gap-6">
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-bold text-[#353131] flex items-center gap-2">
+                            <UserCheck size={16} className="text-[#817e7e]"/> Responsable de Entrega (JAPEM) *
+                        </label>
+                        <input 
+                            type="text" 
+                            required
+                            className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]"
+                            placeholder="Nombre de quien entrega..."
+                            value={form.responsable_entrega}
+                            onChange={(e) => setForm({...form, responsable_entrega: e.target.value})}
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-bold text-[#353131] flex items-center gap-2">
+                            <MapPin size={16} className="text-[#817e7e]"/> Lugar de Entrega *
+                        </label>
+                        <select 
+                            className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none bg-white text-[#353131]"
+                            value={form.lugar_entrega}
+                            onChange={(e) => setForm({...form, lugar_entrega: e.target.value})}
+                        >
+                            <option value="Oficinas JAPEM">Oficinas JAPEM</option>
+                            <option value="Instalaciones de la IAP">Instalaciones de la IAP</option>
+                            <option value="Evento / Otro">Evento / Otro</option>
+                        </select>
+                    </div>
+                </div>
+
+                {/* Botones de Acción */}
+                <div className="pt-4 border-t border-[#c0c6b6]/30 flex justify-end gap-3">
+                    <button 
+                        type="button" 
+                        onClick={() => setIsModalOpen(false)} 
+                        className="px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors"
                     >
-                        <option value="Oficinas JAPEM">Oficinas JAPEM</option>
-                        <option value="Instalaciones de la IAP">Instalaciones de la IAP</option>
-                        <option value="Evento / Otro">Evento / Otro</option>
-                    </select>
+                        Cancelar
+                    </button>
+                    <button 
+                        type="submit" 
+                        className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
+                    >
+                        <CheckCircle size={20} /> Confirmar Entrega
+                    </button>
                 </div>
-            </div>
 
-            {/* Botones de Acción */}
-            <div className="pt-4 border-t border-[#c0c6b6]/30 flex justify-end gap-3">
-                <button 
-                    type="button" 
-                    onClick={() => setIsModalOpen(false)} 
-                    className="px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors"
-                >
-                    Cancelar
-                </button>
-                <button 
-                    type="submit" 
-                    className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
-                >
-                    <CheckCircle size={20} /> Confirmar Entrega
-                </button>
-            </div>
-
-          </form>
-        )}
-      </Modal>
+            </form>
+            )}
+        </Modal>
+      )}
     </div>
   );
 };

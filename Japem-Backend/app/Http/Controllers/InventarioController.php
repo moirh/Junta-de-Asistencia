@@ -32,10 +32,10 @@ class InventarioController extends Controller
                 DB::raw('MAX(inventarios.estado) as estado'),
                 DB::raw('MIN(inventarios.fecha_caducidad) as fecha_caducidad'),
 
-                // 5. SUMATORIAS (AQUÍ ESTÁ EL CAMBIO CLAVE)
+                // 5. SUMATORIAS
                 DB::raw('SUM(inventarios.cantidad) as cantidad_historica'), // Para saber cuánto entró en total
-                DB::raw('SUM(inventarios.cantidad_actual) as cantidad_actual'), // <--- ESTO ES LO QUE DEBES MOSTRAR EN LA TABLA
-                DB::raw('SUM(inventarios.cantidad_actual) as stock_actual'),    // Alias extra por seguridad
+                DB::raw('SUM(inventarios.cantidad_actual) as cantidad_actual'),
+                DB::raw('SUM(inventarios.cantidad_actual) as stock_actual'),
                 DB::raw('SUM(inventarios.monto_deducible_total) as precio_total')
             )
             ->when($search, function ($q) use ($search) {
@@ -89,5 +89,45 @@ class InventarioController extends Controller
             'producto_info' => $producto,
             'lotes' => $lotes
         ]);
+    }
+
+    /**
+     * ACTUALIZAR PRECIOS (NUEVO MÉTODO)
+     * Recibe un array de items y actualiza sus precios de venta/recuperación.
+     */
+    public function updatePrices(Request $request)
+    {
+        // Obtenemos todos los datos enviados (debe ser un array de objetos)
+        $items = $request->all();
+
+        if (!is_array($items)) {
+            return response()->json(['message' => 'Formato de datos inválido'], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($items as $item) {
+                // Verificamos que el item tenga ID (es crucial para saber qué actualizar)
+                if (isset($item['id'])) {
+                    DB::table('inventarios')
+                        ->where('id', $item['id'])
+                        ->update([
+                            'precio_venta_unitario' => $item['precio_venta_unitario'] ?? 0,
+                            'precio_venta_total'    => $item['precio_venta_total'] ?? 0,
+                            // 'updated_at' => now() // Opcional si usas timestamps
+                        ]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['message' => 'Precios actualizados correctamente']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Error al actualizar precios',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

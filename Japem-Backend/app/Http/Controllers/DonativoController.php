@@ -12,9 +12,29 @@ class DonativoController extends Controller
 {
     public function index()
     {
-        // CAMBIO 1: Usamos 'inventarios' porque así llamamos a la relación en el Modelo Donativo.
-        // Si dejas 'detalles', te dará error 500.
-        return Donativo::with(['donante', 'inventarios'])->orderBy('fecha_donativo', 'desc')->get();
+        // Carga ansiosa explícita para asegurar que trae los precios de venta
+        return Donativo::with([
+            'donante',
+            'inventarios' => function ($query) {
+                // Seleccionamos explícitamente todas las columnas necesarias
+                // O simplemente deja $query->select('*'); si quieres todo.
+                $query->select(
+                    'id',
+                    'donativo_id',
+                    'nombre_producto',
+                    'cantidad',
+                    'cantidad_actual',
+                    'clave_unidad',
+                    'precio_unitario_deducible',
+                    'monto_deducible_total',
+                    // --- ESTOS SON LOS IMPORTANTES QUE FALTABAN ---
+                    'precio_venta_unitario',
+                    'precio_venta_total'
+                );
+            }
+        ])
+            ->orderBy('fecha_donativo', 'desc')
+            ->get();
     }
 
     public function catalogo()

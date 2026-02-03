@@ -2,13 +2,13 @@ import { useState, useEffect } from "react";
 import { 
   Plus, Eye, User, Package, HandHeart, Trash2, Box, Tag, 
   Calendar, CheckCircle, Barcode, AlertTriangle, Layers, 
-  Ruler, Clock, List, Hash 
+  Ruler, Clock, List, Hash, Save 
 } from "lucide-react";
 import { Table } from "../../components/ui/Table";
 import { Modal } from "../../components/ui/Modal";
 import { getDonativos, createDonativo } from "../../services/donativosService";
 import { getDonantes } from "../../services/donantesService";
-import { getInventario } from "../../services/inventarioService";
+import { getInventario, updateInventarioPrecios } from "../../services/inventarioService"; 
 import type { Donativo, Donante } from "../../types";
 import Swal from 'sweetalert2';
 
@@ -19,7 +19,23 @@ interface ProductoReferencia {
   unidad_medida: string;
 }
 
-export const DonativosTable = () => {
+// 1. DEFINIMOS LA INTERFAZ PARA RECIBIR EL ROL DESDE EL PADRE
+interface DonativosTableProps {
+  userRole: string;
+}
+
+// 2. RECIBIMOS LA PROP userRole
+export const DonativosTable = ({ userRole }: DonativosTableProps) => {
+  
+  // 3. DEBUG: MIRA ESTO EN LA CONSOLA (F12) PARA VER QUÉ ROL LLEGA REALMENTE
+  // Si aquí sale "lector", revisa tu localStorage.
+  console.log("Rol recibido en DonativosTable:", userRole);
+
+  // 4. DEFINIR SI ES SOLO LECTURA
+  // Si el rol es 'lector', activamos el modo restringido.
+  // Nota: Usa toLowerCase() por si en la BD está como 'Admin' o 'Lector'
+  const isReadOnly = (userRole || '').toLowerCase() === 'lector';
+
   const [donativos, setDonativos] = useState<Donativo[]>([]);
   const [donantes, setDonantes] = useState<Donante[]>([]);
   
@@ -95,6 +111,49 @@ export const DonativosTable = () => {
     }
   };
 
+  // --- LÓGICA DE EDICIÓN DE PRECIOS ---
+  const handlePriceChange = (index: number, newVal: string) => {
+    // PROTECCIÓN: Si es lector, no permitimos editar
+    if (isReadOnly) return;
+
+    if (!selectedDonativo || !selectedDonativo.inventarios) return;
+
+    const newInventarios = [...selectedDonativo.inventarios];
+    const item = newInventarios[index];
+    const precioUnitario = newVal === "" ? 0 : Number(newVal);
+
+    item.precio_venta_unitario = precioUnitario;
+    item.precio_venta_total = item.cantidad * precioUnitario;
+
+    setSelectedDonativo({ ...selectedDonativo, inventarios: newInventarios });
+  };
+
+  const handleUpdatePrices = async () => {
+    // PROTECCIÓN: Si es lector, no guardamos
+    if (isReadOnly) return;
+
+    try {
+        // --- CORRECCIÓN: Descomentado para que funcione ---
+        await updateInventarioPrecios(selectedDonativo.inventarios); 
+        // --------------------------------------------------
+        
+        console.log("Guardando cambios de precios:", selectedDonativo.inventarios);
+
+        Swal.fire({
+            title: 'Precios Actualizados',
+            text: 'Los precios de recuperación se han guardado correctamente.',
+            icon: 'success',
+            confirmButtonColor: '#719c44'
+        });
+        
+        setIsViewModalOpen(false);
+        fetchData(); 
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error', 'No se pudieron actualizar los precios', 'error');
+    }
+  };
+
   const addProductoRow = () => {
     setFormData({
       ...formData,
@@ -148,7 +207,6 @@ export const DonativosTable = () => {
         }
     }
 
-    // Cálculos automáticos (aseguramos que si es vacío "" lo trate como 0 para multiplicar)
     if (field === 'cantidad' || field === 'precio_venta_unitario') {
       const cant = Number(newDetalles[index].cantidad) || 0;
       const price = Number(newDetalles[index].precio_venta_unitario) || 0;
@@ -172,47 +230,23 @@ export const DonativosTable = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.donante_id === 0) { 
-        Swal.fire({
-            title: 'Faltan datos',
-            text: 'Por favor selecciona un donante antes de guardar.',
-            icon: 'warning',
-            confirmButtonColor: '#719c44'
-        });
-        return; 
+        Swal.fire({ title: 'Faltan datos', text: 'Por favor selecciona un donante.', icon: 'warning', confirmButtonColor: '#719c44' }); return; 
     }
     if (formData.detalles.length === 0) { 
-        Swal.fire({
-            title: 'Sin productos',
-            text: 'Debes agregar al menos un producto al inventario.',
-            icon: 'warning',
-            confirmButtonColor: '#719c44'
-        });
-        return; 
+        Swal.fire({ title: 'Sin productos', text: 'Debes agregar al menos un producto.', icon: 'warning', confirmButtonColor: '#719c44' }); return; 
     }
 
     try {
       const totalGlobal = formData.detalles.reduce((sum, item) => sum + (item.monto_deducible_total || 0), 0);
       await createDonativo({ ...formData, monto_total_deducible: totalGlobal }); 
       
-      Swal.fire({
-        title: '¡Entrada Registrada!',
-        text: 'El donativo y los productos se han guardado correctamente.',
-        icon: 'success',
-        confirmButtonColor: '#719c44',
-        confirmButtonText: 'Excelente'
-      });
-
+      Swal.fire({ title: '¡Entrada Registrada!', text: 'El donativo se guardó correctamente.', icon: 'success', confirmButtonColor: '#719c44', confirmButtonText: 'Excelente' });
       setIsModalOpen(false);
       setFormData(initialFormState);
       fetchData(); 
     } catch (error) {
       console.error("Error:", error);
-      Swal.fire({
-        title: 'Error',
-        text: 'Hubo un problema al guardar la entrada. Inténtalo de nuevo.',
-        icon: 'error',
-        confirmButtonColor: '#353131'
-      });
+      Swal.fire({ title: 'Error', text: 'Hubo un problema al guardar.', icon: 'error', confirmButtonColor: '#353131' });
     }
   };
 
@@ -242,15 +276,15 @@ export const DonativosTable = () => {
           <p className="text-[#817e7e] mt-1">Gestiona los donativos recibidos e inventario.</p>
         </div>
         
-        <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
-          >
-            <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" />
-            <span className="hidden sm:inline">Registrar Entrada</span>
-          </button>
-        </div>
+        {/* CONDICIONAL: OCULTAR SI ES LECTOR */}
+        {!isReadOnly && (
+            <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
+            <button onClick={() => setIsModalOpen(true)} className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95">
+                <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" />
+                <span className="hidden sm:inline">Registrar Entrada</span>
+            </button>
+            </div>
+        )}
       </div>
 
       {/* TABLA PRINCIPAL */}
@@ -265,20 +299,13 @@ export const DonativosTable = () => {
             data={donativosParaTabla}
             columns={columns}
             renderCell={(key, value, row: any) => {
-              
               if (key === "fecha_donativo") return (
                 <div className="flex justify-start items-center gap-2 text-[#353131]">
                     <Calendar size={16} className="text-[#719c44]" />
                     <span className="capitalize">{new Date(value).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}</span>
                 </div>
               );
-
-              if (key === "donante") return (
-                <div className="font-semibold text-[#353131] text-left">
-                    {row.donante?.razon_social || "Desconocido"}
-                </div>
-              );
-
+              if (key === "donante") return (<div className="font-semibold text-[#353131] text-left">{row.donante?.razon_social || "Desconocido"}</div>);
               if (key === "inventarios") {
                 const productos = row.inventarios || []; 
                 const primeros = productos.slice(0, 2);
@@ -296,23 +323,18 @@ export const DonativosTable = () => {
                   </div>
                 );
               }
-
               if (key === "monto_total_deducible") return (
                 <div className="flex justify-start">
-                    <span className="bg-[#f2f5f0] text-[#719c44] px-3 py-1 rounded-full font-bold text-sm border border-[#c0c6b6]">
-                        ${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                    </span>
+                    <span className="bg-[#f2f5f0] text-[#719c44] px-3 py-1 rounded-full font-bold text-sm border border-[#c0c6b6]">${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                 </div>
               );
-
               if (key === "id") return (
-                <div className="flex justify-center">
+                <div className="flex justify-start">
                     <button onClick={() => { setSelectedDonativo(row); setIsViewModalOpen(true); }} className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm">
                         <Eye size={18} /> Ver Detalles
                     </button>
                 </div>
               );
-
               return <div className="text-left">{value}</div>;
             }}
           />
@@ -320,247 +342,286 @@ export const DonativosTable = () => {
       )}
 
       {/* --- MODAL DE REGISTRO --- */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Entrada" size="extraLarge" variant="japem" icon={<HandHeart />}>
-        <form onSubmit={handleSave} className="space-y-8 p-1">
-          <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
-            <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2"><User size={18} /> Información del Donante</h3>
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              <div className="md:col-span-5 space-y-1.5">
-                <label className="text-sm font-bold text-[#353131]">Seleccionar Donante *</label>
-                <select required className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none bg-white text-[#353131]" value={formData.donante_id} onChange={(e) => setFormData({ ...formData, donante_id: Number(e.target.value) })}>
-                  <option value={0}>-- Seleccionar Donante --</option>
-                  {donantes.map((d) => <option key={d.id} value={d.id}>{d.razon_social}</option>)}
-                </select>
-              </div>
-              <div className="md:col-span-3 space-y-1.5">
-                <label className="text-sm font-bold text-[#353131]">Fecha Recepción *</label>
-                <input type="date" required className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]" value={formData.fecha_donativo} onChange={(e) => setFormData({ ...formData, fecha_donativo: e.target.value })} />
-              </div>
-              <div className="md:col-span-4 space-y-1.5">
-                <label className="text-sm font-bold text-[#353131]">Notas / Observaciones</label>
-                <input type="text" className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]" placeholder="Ej. Entregado por chofer..." value={formData.observaciones} onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })} />
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-extrabold text-[#817e7e] uppercase tracking-wide flex items-center gap-2"><Package size={18} /> Inventario a Ingresar</h3>
-              <button type="button" onClick={addProductoRow} className="cursor-pointer flex items-center gap-2 bg-[#f2f5f0] hover:bg-[#c0c6b6] text-[#353131] px-5 py-2 rounded-xl transition-all font-bold text-sm hover:scale-105 active:scale-95 border border-[#c0c6b6]"><Plus size={16} /> Agregar Fila</button>
-            </div>
-
-            {formData.detalles.map((detalle, index) => {
-              const showExpiry = needsExpiration(detalle.categoria_producto || "");
-              const productosFiltrados = catalogoReferencias.filter(p => 
-                 !detalle.categoria_producto || detalle.categoria_producto === "0" || p.categoria === detalle.categoria_producto
-              );
-
-              return (
-                <div key={index} className="bg-white p-5 rounded-2xl border border-[#c0c6b6] shadow-sm relative group animate-in slide-in-from-bottom-2 mb-4">
-                  <button type="button" onClick={() => removeProductoRow(index)} className="cursor-pointer absolute top-4 right-4 text-[#c0c6b6] hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
-
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-start">
-                    
-                    <div className="md:col-span-3 space-y-1">
-                      <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Tag size={12} /> Categoría</label>
-                      <select className="w-full p-2.5 bg-[#f9fafb] border border-[#c0c6b6] rounded-lg text-sm uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131]" 
-                        value={detalle.categoria_producto} onChange={(e) => handleProductChange(index, "categoria_producto", e.target.value)}>
-                        <option value={0}>-- Seleccionar --</option>
-                        <option value="Alimentos">Alimentos</option>
-                        <option value="Medicamentos">Medicamentos</option>
-                        <option value="Ropa">Ropa</option>
-                        <option value="Juguetes">Juguetes</option>
-                        <option value="Mantenimiento">Mantenimiento</option>
-                        <option value="Otros">Otros</option>
-                      </select>
-                    </div>
-
-                    <div className="md:col-span-6 space-y-1">
-                      <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1"><Box size={12} /> Producto Específico</label>
-                      <div className="flex gap-2">
-                        {!detalle.isManual ? (
-                            <select 
-                                className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none"
-                                value={detalle.nombre_producto} 
-                                onChange={(e) => handleProductChange(index, "nombre_producto", e.target.value)}
-                            >
-                                <option value="">-- Buscar Producto --</option>
-                                {productosFiltrados.map((prod, i) => (
-                                    <option key={i} value={prod.nombre}>{prod.nombre}</option>
-                                ))}
-                            </select>
-                        ) : (
-                            <input 
-                                type="text" 
-                                placeholder="Nuevo producto..." 
-                                className="w-full p-2.5 border-2 border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none animate-fade-in" 
-                                value={detalle.nombre_producto} 
-                                onChange={(e) => handleProductChange(index, "nombre_producto", e.target.value)} 
-                                autoFocus
-                            />
-                        )}
-                        <button 
-                            type="button"
-                            onClick={() => toggleInputMode(index)}
-                            className={`cursor-pointer p-2.5 rounded-lg border transition-all ${detalle.isManual ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300' : 'bg-[#719c44] text-white hover:bg-[#5e8239] border-[#719c44]'}`}
-                            title={detalle.isManual ? "Ver lista existente" : "Agregar nuevo producto"}
-                        >
-                            {detalle.isManual ? <List size={18} /> : <Plus size={18} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-3 space-y-1">
-                      <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Barcode size={12} /> Clave SAT</label>
-                      <input type="text" placeholder="Ej. 10101502" 
-                        className={`w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm font-mono uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131] ${!detalle.isManual ? 'bg-[#f9fafb] text-gray-500' : 'bg-white'}`}
-                        value={detalle.clave_sat || ""} onChange={(e) => handleProductChange(index, "clave_sat", e.target.value)} 
-                        readOnly={!detalle.isManual} 
-                      />
-                    </div>
-
-                    <div className="md:col-span-3 space-y-1">
-                      <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><AlertTriangle size={12} /> Estado</label>
-                      <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm focus:ring-2 focus:ring-[#719c44] outline-none bg-white text-[#353131]"
-                        value={detalle.estado || "Nuevo"} onChange={(e) => handleProductChange(index, "estado", e.target.value)}>
-                        <option value="Nuevo">Nuevo</option>
-                        <option value="Buen Estado">Buen Estado</option>
-                      </select>
-                    </div>
-
-                    <div className="md:col-span-3 space-y-1">
-                      <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Layers size={12} /> Modalidad</label>
-                      <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]" value={detalle.modalidad || ""} onChange={(e) => handleProductChange(index, "modalidad", e.target.value)}>
-                        <option value={0}>-- Seleccionar --</option>
-                        <option value="Redondeo directo IAP">Redondeo directo IAP</option>
-                        <option value="Servicio directo Japem">Servicio directo Japem</option>
-                        <option value="Recurso directo IAP">Recurso directo IAP</option>
-                        <option value="Especie directo IAP">Especie directo IAP</option>
-                        <option value="Talento directo IAP">Talento directo IAP</option>  
-                        <option value="Redondeo vía Japem">Redondeo vía Japem</option>  
-                        <option value="Servicio vía Japem">Servicio vía Japem</option>  
-                        <option value="Recurso vía Japem">Recurso vía Japem</option>  
-                        <option value="Especie vía Japem">Especie vía Japem</option>  
-                        <option value="Talento vía Japem">Talento vía Japem</option>  
-                      </select>
-                    </div>
-
-                    <div className="md:col-span-3 space-y-1">
-                      <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Ruler size={12} /> Unidad de Medida</label>
-                      <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]" value={detalle.clave_unidad || ""} onChange={(e) => handleProductChange(index, "clave_unidad", e.target.value)}>
-                        <option value="PZA">PZA</option>
-                        <option value="KG">KG</option>
-                        <option value="CAJA">CAJA</option>
-                        <option value="BOLSA">BOLSA</option>
-                        <option value="PAQUETE">PAQUETE</option>
-                        <option value="KIT">KIT</option>
-                        <option value="TARIMA">TARIMA</option>
-                        <option value="PERSONAS">PERSONAS</option>
-                        <option value="PROYECTO">PROYECTO</option>
-                        <option value="LITRO">LITRO</option>
-                        <option value="BIDÓN">BIDÓN</option>
-                        <option value="ROLLO">ROLLO</option>
-                        <option value="ANIMAL">ANIMAL</option>
-                        <option value="PAR">PAR</option>
-                      </select>
-                    </div>
-
-                    {showExpiry ? (
-                      <div className="md:col-span-3 space-y-1 animate-fade-in">
-                        <label className="text-xs font-bold text-red-500 uppercase flex items-center gap-1"><Clock size={12} /> Caducidad *</label>
-                        <input type="date" className="w-full p-2.5 border border-red-200 bg-red-50 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-[#353131]" value={detalle.fecha_caducidad || ""} onChange={(e) => handleProductChange(index, "fecha_caducidad", e.target.value)} />
-                      </div>
-                    ) : <div className="hidden md:block md:col-span-3"></div>}
-
-                    {/* --- CORRECCIÓN CANTIDAD: Permite borrar el campo --- */}
-                    <div className="md:col-span-2 space-y-1">
-                      <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1"><Hash size={12} /> Cantidad</label>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-center text-[#353131]" 
-                        
-                        // Si el valor es 0, mostramos cadena vacía ""
-                        value={detalle.cantidad === 0 ? "" : detalle.cantidad} 
-                        
-                        // Si borra, manda "", si no, manda el número
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            handleProductChange(index, "cantidad", val === "" ? "" : Number(val));
-                        }} 
-                      />
-                    </div>
-
-                    {/* --- CORRECCIÓN PRECIO: Permite borrar el campo --- */}
-                    <div className="md:col-span-2 space-y-1">
-                      <label className="text-xs font-bold text-[#817e7e] uppercase">P. Unitario</label>
-                      <input 
-                        type="number" 
-                        step="0.01" 
-                        className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm text-[#353131]" 
-                        
-                        value={detalle.precio_unitario_deducible === 0 ? "" : detalle.precio_unitario_deducible} 
-                        
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            handleProductChange(index, "precio_unitario_deducible", val === "" ? "" : Number(val));
-                        }} 
-                      />
-                    </div>
-                  </div>
+      {/* PROTECCIÓN ADICIONAL: Solo renderizar si NO es lector */}
+      {!isReadOnly && (
+        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Entrada" size="extraLarge" variant="japem" icon={<HandHeart />}>
+            <form onSubmit={handleSave} className="space-y-8 p-1">
+            <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
+                <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2"><User size={18} /> Información del Donante</h3>
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <div className="md:col-span-5 space-y-1.5">
+                    <label className="text-sm font-bold text-[#353131]">Seleccionar Donante *</label>
+                    <select required className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none bg-white text-[#353131]" value={formData.donante_id} onChange={(e) => setFormData({ ...formData, donante_id: Number(e.target.value) })}>
+                    <option value={0}>-- Seleccionar Donante --</option>
+                    {donantes.map((d) => <option key={d.id} value={d.id}>{d.razon_social}</option>)}
+                    </select>
                 </div>
-              );
-            })}
-          </div>
+                <div className="md:col-span-3 space-y-1.5">
+                    <label className="text-sm font-bold text-[#353131]">Fecha Recepción *</label>
+                    <input type="date" required className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]" value={formData.fecha_donativo} onChange={(e) => setFormData({ ...formData, fecha_donativo: e.target.value })} />
+                </div>
+                <div className="md:col-span-4 space-y-1.5">
+                    <label className="text-sm font-bold text-[#353131]">Notas / Observaciones</label>
+                    <input type="text" className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]" placeholder="Ej. Entregado por chofer..." value={formData.observaciones} onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })} />
+                </div>
+                </div>
+            </div>
 
-          <div className="sticky bottom-0 bg-white pt-4 border-t border-[#c0c6b6]/30 flex justify-end gap-3 z-20">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="cursor-pointer px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors">Cancelar</button>
-            <button type="submit" className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-transform transform active:scale-95 flex items-center gap-2"><CheckCircle size={20} /> Guardar Entrada</button>
-          </div>
-        </form>
-      </Modal>
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                <h3 className="text-sm font-extrabold text-[#817e7e] uppercase tracking-wide flex items-center gap-2"><Package size={18} /> Inventario a Ingresar</h3>
+                <button type="button" onClick={addProductoRow} className="cursor-pointer flex items-center gap-2 bg-[#f2f5f0] hover:bg-[#c0c6b6] text-[#353131] px-5 py-2 rounded-xl transition-all font-bold text-sm hover:scale-105 active:scale-95 border border-[#c0c6b6]"><Plus size={16} /> Agregar Fila</button>
+                </div>
 
-      {/* --- MODAL DETALLES --- */}
-      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detalle Completo del Donativo" size="extraLarge" variant="japem">
+                {formData.detalles.map((detalle, index) => {
+                const showExpiry = needsExpiration(detalle.categoria_producto || "");
+                const productosFiltrados = catalogoReferencias.filter(p => 
+                    !detalle.categoria_producto || detalle.categoria_producto === "0" || p.categoria === detalle.categoria_producto
+                );
+
+                return (
+                    <div key={index} className="bg-white p-5 rounded-2xl border border-[#c0c6b6] shadow-sm relative group animate-in slide-in-from-bottom-2 mb-4">
+                    <button type="button" onClick={() => removeProductoRow(index)} className="cursor-pointer absolute top-4 right-4 text-[#c0c6b6] hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
+
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-start">
+                        
+                        <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Tag size={12} /> Categoría</label>
+                        <select className="w-full p-2.5 bg-[#f9fafb] border border-[#c0c6b6] rounded-lg text-sm uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131]" 
+                            value={detalle.categoria_producto} onChange={(e) => handleProductChange(index, "categoria_producto", e.target.value)}>
+                            <option value={0}>-- Seleccionar --</option>
+                            <option value="Alimentos">Alimentos</option>
+                            <option value="Medicamentos">Medicamentos</option>
+                            <option value="Ropa">Ropa</option>
+                            <option value="Juguetes">Juguetes</option>
+                            <option value="Mantenimiento">Mantenimiento</option>
+                            <option value="Otros">Otros</option>
+                        </select>
+                        </div>
+
+                        <div className="md:col-span-6 space-y-1">
+                        <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1"><Box size={12} /> Producto Específico</label>
+                        <div className="flex gap-2">
+                            {!detalle.isManual ? (
+                                <select 
+                                    className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none"
+                                    value={detalle.nombre_producto} 
+                                    onChange={(e) => handleProductChange(index, "nombre_producto", e.target.value)}
+                                >
+                                    <option value="">-- Buscar Producto --</option>
+                                    {productosFiltrados.map((prod, i) => (
+                                        <option key={i} value={prod.nombre}>{prod.nombre}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <input 
+                                    type="text" 
+                                    placeholder="Nuevo producto..." 
+                                    className="w-full p-2.5 border-2 border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none animate-fade-in" 
+                                    value={detalle.nombre_producto} 
+                                    onChange={(e) => handleProductChange(index, "nombre_producto", e.target.value)} 
+                                    autoFocus
+                                />
+                            )}
+                            <button 
+                                type="button"
+                                onClick={() => toggleInputMode(index)}
+                                className={`cursor-pointer p-2.5 rounded-lg border transition-all ${detalle.isManual ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300' : 'bg-[#719c44] text-white hover:bg-[#5e8239] border-[#719c44]'}`}
+                                title={detalle.isManual ? "Ver lista existente" : "Agregar nuevo producto"}
+                            >
+                                {detalle.isManual ? <List size={18} /> : <Plus size={18} />}
+                            </button>
+                        </div>
+                        </div>
+
+                        <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Barcode size={12} /> Clave SAT</label>
+                        <input type="text" placeholder="Ej. 10101502" 
+                            className={`w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm font-mono uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131] ${!detalle.isManual ? 'bg-[#f9fafb] text-gray-500' : 'bg-white'}`}
+                            value={detalle.clave_sat || ""} onChange={(e) => handleProductChange(index, "clave_sat", e.target.value)} 
+                            readOnly={!detalle.isManual} 
+                        />
+                        </div>
+
+                        <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><AlertTriangle size={12} /> Estado</label>
+                        <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm focus:ring-2 focus:ring-[#719c44] outline-none bg-white text-[#353131]"
+                            value={detalle.estado || "Nuevo"} onChange={(e) => handleProductChange(index, "estado", e.target.value)}>
+                            <option value="Nuevo">Nuevo</option>
+                            <option value="Buen Estado">Buen Estado</option>
+                        </select>
+                        </div>
+
+                        <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Layers size={12} /> Modalidad</label>
+                        <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]" value={detalle.modalidad || ""} onChange={(e) => handleProductChange(index, "modalidad", e.target.value)}>
+                            <option value={0}>-- Seleccionar --</option>
+                            <option value="Redondeo directo IAP">Redondeo directo IAP</option>
+                            <option value="Servicio directo Japem">Servicio directo Japem</option>
+                            <option value="Recurso directo IAP">Recurso directo IAP</option>
+                            <option value="Especie directo IAP">Especie directo IAP</option>
+                            <option value="Talento directo IAP">Talento directo IAP</option>  
+                            <option value="Redondeo vía Japem">Redondeo vía Japem</option>  
+                            <option value="Servicio vía Japem">Servicio vía Japem</option>  
+                            <option value="Recurso vía Japem">Recurso vía Japem</option>  
+                            <option value="Especie vía Japem">Especie vía Japem</option>  
+                            <option value="Talento vía Japem">Talento vía Japem</option>  
+                        </select>
+                        </div>
+
+                        <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Ruler size={12} /> Unidad de Medida</label>
+                        <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]" value={detalle.clave_unidad || ""} onChange={(e) => handleProductChange(index, "clave_unidad", e.target.value)}>
+                            <option value="PZA">PZA</option>
+                            <option value="KG">KG</option>
+                            <option value="CAJA">CAJA</option>
+                            <option value="BOLSA">BOLSA</option>
+                            <option value="PAQUETE">PAQUETE</option>
+                            <option value="KIT">KIT</option>
+                            <option value="TARIMA">TARIMA</option>
+                            <option value="PERSONAS">PERSONAS</option>
+                            <option value="PROYECTO">PROYECTO</option>
+                            <option value="LITRO">LITRO</option>
+                            <option value="BIDÓN">BIDÓN</option>
+                            <option value="ROLLO">ROLLO</option>
+                            <option value="ANIMAL">ANIMAL</option>
+                            <option value="PAR">PAR</option>
+                        </select>
+                        </div>
+
+                        {showExpiry ? (
+                        <div className="md:col-span-3 space-y-1 animate-fade-in">
+                            <label className="text-xs font-bold text-red-500 uppercase flex items-center gap-1"><Clock size={12} /> Caducidad *</label>
+                            <input type="date" className="w-full p-2.5 border border-red-200 bg-red-50 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-[#353131]" value={detalle.fecha_caducidad || ""} onChange={(e) => handleProductChange(index, "fecha_caducidad", e.target.value)} />
+                        </div>
+                        ) : <div className="hidden md:block md:col-span-3"></div>}
+
+                        <div className="md:col-span-2 space-y-1">
+                        <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1"><Hash size={12} /> Cantidad</label>
+                        <input 
+                            type="number" 
+                            min="1" 
+                            className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-center text-[#353131]" 
+                            value={detalle.cantidad === 0 ? "" : detalle.cantidad} 
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                handleProductChange(index, "cantidad", val === "" ? "" : Number(val));
+                            }} 
+                        />
+                        </div>
+
+                        <div className="md:col-span-2 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase">P. Unitario</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm text-[#353131]" 
+                            value={detalle.precio_unitario_deducible === 0 ? "" : detalle.precio_unitario_deducible} 
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                handleProductChange(index, "precio_unitario_deducible", val === "" ? "" : Number(val));
+                            }} 
+                        />
+                        </div>
+
+                        {/* --- PRECIO VENTA (REGISTRO) --- */}
+                        <div className="md:col-span-2 space-y-1">
+                        <label className="text-xs font-bold text-[#719c44] uppercase">P. Venta (Recup.)</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-[#719c44] outline-none" 
+                            value={detalle.precio_venta_unitario === 0 ? "" : detalle.precio_venta_unitario} 
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                handleProductChange(index, "precio_venta_unitario", val === "" ? "" : Number(val));
+                            }} 
+                        />
+                        </div>
+
+                    </div>
+                    </div>
+                );
+                })}
+            </div>
+
+            <div className="sticky bottom-0 bg-white pt-4 border-t border-[#c0c6b6]/30 flex justify-end gap-3 z-20">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="cursor-pointer px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors">Cancelar</button>
+                <button type="submit" className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-transform transform active:scale-95 flex items-center gap-2"><CheckCircle size={20} /> Guardar Entrada</button>
+            </div>
+            </form>
+        </Modal>
+      )}
+
+      {/* --- MODAL DETALLES EDITABLE --- */}
+      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detalle y Ajuste de Precios" size="extraLarge" variant="japem">
          {selectedDonativo && (
-          <div className="space-y-8 p-1">
-            <div className="bg-[#f2f5f0] p-5 rounded-2xl border border-[#c0c6b6] grid grid-cols-2 md:grid-cols-4 gap-4 shadow-sm">
-               <div><p className="text-xs text-[#817e7e] uppercase font-bold">Donante</p><p className="text-sm font-bold text-[#353131]">{selectedDonativo.donante?.razon_social}</p></div>
-               <div><p className="text-xs text-[#817e7e] uppercase font-bold">Fecha</p><p className="text-sm font-medium text-[#719c44]">{new Date(selectedDonativo.fecha_donativo).toLocaleDateString("es-MX", {dateStyle: 'long'})}</p></div>
-               <div><p className="text-xs text-[#817e7e] uppercase font-bold">Total Deducible</p><p className="text-sm font-bold text-[#719c44]">${Number(selectedDonativo.monto_total_deducible).toLocaleString()}</p></div>
-               <div><p className="text-xs text-[#817e7e] uppercase font-bold">Observaciones</p><p className="text-xs text-[#817e7e] italic">{selectedDonativo.observaciones || "Sin observaciones"}</p></div>
+          <div className="space-y-6 p-1">
+            <div className="bg-[#f2f5f0] p-4 rounded-xl border border-[#c0c6b6] grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+               <div><p className="text-[#817e7e] font-bold uppercase">Donante</p><p className="text-[#353131] font-bold text-sm">{selectedDonativo.donante?.razon_social}</p></div>
+               <div><p className="text-[#817e7e] font-bold uppercase">Fecha</p><p className="text-[#719c44] font-bold">{new Date(selectedDonativo.fecha_donativo).toLocaleDateString("es-MX", {dateStyle: 'long'})}</p></div>
+               <div><p className="text-[#817e7e] font-bold uppercase">Total Deducible</p><p className="text-[#353131] font-bold">${Number(selectedDonativo.monto_total_deducible).toLocaleString()}</p></div>
+               <div><p className="text-[#817e7e] font-bold uppercase">Observaciones</p><p className="text-[#817e7e] italic">{selectedDonativo.observaciones || "Sin observaciones"}</p></div>
             </div>
             
-            {/* Lista de productos en detalle */}
-            <div className="border border-[#c0c6b6]/50 rounded-xl overflow-hidden overflow-x-auto">
+            <div className="border border-[#c0c6b6]/50 rounded-xl overflow-hidden overflow-x-auto shadow-sm">
                 <table className="w-full text-sm text-left">
-                    <thead className="bg-[#f9fafb] text-[#817e7e] font-bold uppercase text-xs">
+                    <thead className="bg-[#f9fafb] text-[#817e7e] font-bold uppercase text-[11px]">
                         <tr>
-                            <th className="px-4 py-3 min-w-[150px]">Producto</th>
-                            <th className="px-4 py-3 text-center">Cant.</th>
-                            <th className="px-4 py-3 text-center">Unidad</th>
-                            <th className="px-4 py-3 text-right bg-gray-50 border-l border-gray-100">P. Deducible</th>
-                            <th className="px-4 py-3 text-right bg-gray-50">Total Ded.</th>
-                            <th className="px-4 py-3 text-right text-[#719c44] bg-[#f2f5f0] border-l border-[#c0c6b6]/30">P. Venta</th>
-                            <th className="px-4 py-3 text-right text-[#719c44] bg-[#f2f5f0]">Total Venta</th>
+                            <th className="px-3 py-3 min-w-[150px]">Producto</th>
+                            <th className="px-2 py-3 text-center">Cant.</th>
+                            <th className="px-3 py-3 text-right bg-gray-50 border-l">P. Deducible</th>
+                            <th className="px-3 py-3 text-right bg-gray-50">Total Ded.</th>
+                            
+                            {/* COLUMNA EDITABLE CONDICIONADA */}
+                            <th className="px-2 py-3 text-center text-[#719c44] bg-[#f2f5f0] border-l border-[#c0c6b6]/30 w-[130px]">
+                                P. Venta {isReadOnly ? '(Solo Lectura)' : '(Editable)'}
+                            </th>
+                            <th className="px-3 py-3 text-right text-[#719c44] bg-[#f2f5f0]">Total Venta</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f2f5f0]">
                         {selectedDonativo.inventarios?.map((det:any, idx:number) => (
-                            <tr key={idx} className="hover:bg-[#f2f5f0]">
-                                <td className="px-4 py-3 font-medium text-[#353131]">{det.nombre_producto}</td>
-                                <td className="px-4 py-3 text-center text-[#353131] font-bold">{det.cantidad}</td>
-                                <td className="px-4 py-3 text-center text-xs text-[#817e7e]">{det.clave_unidad}</td>
-                                <td className="px-4 py-3 text-right text-[#817e7e] border-l border-gray-100">
+                            <tr key={idx} className="hover:bg-[#f9fafb] transition-colors">
+                                <td className="px-3 py-2 font-medium text-[#353131]">
+                                    {det.nombre_producto}
+                                    <div className="text-[10px] text-[#817e7e]">{det.clave_unidad}</div>
+                                </td>
+                                <td className="px-2 py-2 text-center text-[#353131] font-bold bg-gray-50/50">
+                                    {det.cantidad}
+                                </td>
+                                <td className="px-3 py-2 text-right text-[#817e7e] border-l border-gray-100">
                                     ${Number(det.precio_unitario_deducible).toLocaleString('es-MX', {minimumFractionDigits: 2})}
                                 </td>
-                                <td className="px-4 py-3 text-right font-medium text-[#353131]">
+                                <td className="px-3 py-2 text-right font-medium text-[#817e7e]">
                                     ${(Number(det.cantidad) * Number(det.precio_unitario_deducible)).toLocaleString('es-MX', {minimumFractionDigits: 2})}
                                 </td>
-                                <td className="px-4 py-3 text-right text-[#5e8239] border-l border-[#c0c6b6]/30">
-                                    ${Number(det.precio_venta_unitario ?? 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}
+
+                                {/* INPUT EDITABLE: CONDICIONADO POR isReadOnly */}
+                                <td className="px-2 py-2 border-l border-[#c0c6b6]/30 bg-[#f2f5f0]/30">
+                                    <div className="relative">
+                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#719c44] font-bold">$</span>
+                                        <input 
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            // BLOQUEO SI ES LECTOR
+                                            readOnly={isReadOnly}
+                                            disabled={isReadOnly}
+                                            className={`w-full pl-5 pr-2 py-1.5 border rounded-lg text-right font-bold outline-none text-sm 
+                                                ${isReadOnly 
+                                                    ? 'bg-transparent border-transparent text-[#817e7e]' 
+                                                    : 'bg-white border-[#c0c6b6] text-[#353131] focus:ring-2 focus:ring-[#719c44]'
+                                                }`}
+                                            value={det.precio_venta_unitario ?? 0}
+                                            onChange={(e) => handlePriceChange(idx, e.target.value)}
+                                            // Solo selecciona si NO es lector
+                                            onFocus={(e) => !isReadOnly && e.target.select()}
+                                        />
+                                    </div>
                                 </td>
-                                <td className="px-4 py-3 text-right font-bold text-[#719c44]">
+
+                                <td className="px-3 py-2 text-right font-bold text-[#719c44] bg-[#f2f5f0]/30">
                                     ${Number(det.precio_venta_total ?? (det.cantidad * (det.precio_venta_unitario ?? 0))).toLocaleString('es-MX', {minimumFractionDigits: 2})}
                                 </td>
                             </tr>
@@ -569,7 +630,17 @@ export const DonativosTable = () => {
                 </table>
             </div>
 
-            <button onClick={() => setIsViewModalOpen(false)} className="cursor-pointer w-full py-3 bg-[#f9fafb] hover:bg-[#f2f5f0] text-[#353131] font-bold rounded-xl transition transform active:scale-95 border border-[#c0c6b6]/30">Cerrar Detalle</button>
+            <div className="flex gap-3 pt-2 border-t border-gray-100">
+                <button onClick={() => setIsViewModalOpen(false)} className="flex-1 py-3 bg-[#f9fafb] hover:bg-gray-100 text-[#817e7e] font-bold rounded-xl transition border border-[#c0c6b6]/30">
+                    {isReadOnly ? 'Cerrar' : 'Cancelar'}
+                </button>
+                {/* BOTÓN GUARDAR: SOLO SI NO ES LECTOR */}
+                {!isReadOnly && (
+                    <button onClick={handleUpdatePrices} className="flex-1 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-md shadow-[#719c44]/20 transition transform active:scale-95 flex items-center justify-center gap-2">
+                        <Save size={18} /> Guardar Precios
+                    </button>
+                )}
+            </div>
           </div>
          )}
       </Modal>

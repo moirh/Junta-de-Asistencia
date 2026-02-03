@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DonantesTable from "./DonantesTable";
 import { DonativosTable } from "./DonativosTable";
 import { IapTable } from "../Iap/IapTable"; 
@@ -10,8 +10,36 @@ import { HandHeart, Users, Building2, Package, Share2, Truck } from "lucide-reac
 export const Donativos = () => {
   const [activeTab, setActiveTab] = useState<"donantes" | "donativos" | "iaps" | "distribucion" | "entrega" | "inventario">("donantes");
 
+  const [userRole, setUserRole] = useState<string>("");
+
+  useEffect(() => {
+    // --- LÓGICA ROBUSTA DE RECUPERACIÓN DE ROL ---
+    
+    // 1. Intentamos leer la llave directa 'role'
+    let storedRole = localStorage.getItem('role');
+
+    // 2. Si no existe, intentamos leer dentro del objeto 'user' (común en logins de Laravel/Sanctum)
+    if (!storedRole) {
+        const userStored = localStorage.getItem('user');
+        if (userStored) {
+            try {
+                const userObj = JSON.parse(userStored);
+                // Accedemos a la propiedad role dentro del objeto user
+                storedRole = userObj.role || userObj.user?.role; 
+            } catch (error) {
+                console.error("Error al parsear el usuario del storage", error);
+            }
+        }
+    }
+
+    // 3. DEBUG: Abre la consola (F12) para confirmar que ahora sí dice "admin"
+    console.log("Rol final detectado en Donativos.tsx:", storedRole);
+
+    // 4. Si después de todo sigue null, asignamos 'lector' por seguridad
+    setUserRole(storedRole || 'lector');
+  }, []);
+
   return (
-    // p-2 para reducir el espacio superior como pediste antes
     <div className="min-h-screen bg-gray-50 p-2 font-inter animate-fade-in-up">
       <div className="w-full mx-auto">
         
@@ -22,9 +50,7 @@ export const Donativos = () => {
           </h1>
         </div>
 
-        {/* TABS DE NAVEGACIÓN 
-            Agregué 'cursor-pointer' a todos los botones
-        */}
+        {/* TABS DE NAVEGACIÓN */}
         <div className="flex flex-wrap gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-gray-100 w-fit mb-4 mx-auto">
           
           <button 
@@ -73,12 +99,15 @@ export const Donativos = () => {
 
         {/* Contenido */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 lg:p-8 animate-fade-in-up delay-100 min-h-[500px]">
-          {activeTab === "donantes" && <DonantesTable />}
-          {activeTab === "donativos" && <DonativosTable />}
-          {activeTab === "iaps" && <IapTable />}
-          {activeTab === "distribucion" && <EntregasView />} 
-          {activeTab === "entrega" && <Entrega />}
-          {activeTab === "inventario" && <InventarioTable />}
+          {activeTab === "donantes" && <DonantesTable userRole={userRole} />}
+          
+          {/* AQUÍ SE PASA EL ROL CORRECTO AHORA */}
+          {activeTab === "donativos" && <DonativosTable userRole={userRole} />}
+          
+          {activeTab === "iaps" && <IapTable userRole={userRole} />}
+          {activeTab === "distribucion" && <EntregasView userRole={userRole} />} 
+          {activeTab === "entrega" && <Entrega userRole={userRole} />}
+          {activeTab === "inventario" && <InventarioTable userRole={userRole} />}
         </div>
         
       </div>

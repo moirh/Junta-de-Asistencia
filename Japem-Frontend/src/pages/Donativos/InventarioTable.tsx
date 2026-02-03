@@ -19,11 +19,20 @@ interface InventarioItem {
   semaforo_rotacion: 'fresco' | 'atencion' | 'critico'; 
 }
 
-export const InventarioTable = () => {
+// 1. DEFINIMOS LA INTERFAZ PARA RECIBIR EL ROL
+interface InventarioTableProps {
+  userRole: string;
+}
+
+// 2. RECIBIMOS LA PROP (Esto evita errores con el index.tsx)
+export const InventarioTable = ({ userRole }: InventarioTableProps) => {
   const [productos, setProductos] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState("Todas");
   
+  // 3. DEBUG: Verifica en la consola (F12) que aquí diga "lector"
+  console.log("Rol en Inventario:", userRole);
+
   useEffect(() => {
     cargarInventario();
   }, []);
@@ -119,7 +128,6 @@ export const InventarioTable = () => {
             <Table
               data={productosProcesados}
               columns={columns}
-              // SE ELIMINÓ 'rowsPerPage={10}' PARA CORREGIR EL ERROR
               renderCell={(key, value, row) => {
                 
                 if (key === "nombre_producto") return (

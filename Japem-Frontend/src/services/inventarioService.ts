@@ -12,15 +12,16 @@ const getAuthConfig = () => {
   };
 };
 
-// 1. ACTUALIZAMOS LA INTERFAZ
+// 1. ACTUALIZAMOS LA INTERFAZ (Le agregué stock_actual por si acaso lo usas en otros lados)
 export interface ItemInventario {
   id: number;
   nombre_producto: string;
   categoria_producto: string;
   cantidad: number;
+  stock_actual?: number; // Agregado opcional para compatibilidad
   unidad_medida: string;
   precio_total?: number;
-  clave_sat?: string; // <--- ¡AGREGADO! IMPORTANTE PARA QUE NO DE ERROR DE TIPO
+  clave_sat?: string; 
 }
 
 export const getInventario = async () => {
@@ -36,11 +37,7 @@ export const getInventario = async () => {
       stock_actual: Number(item.stock_actual),
       unidad_medida: item.clave_unidad || item.unidad_medida,
       precio_total: Number(item.precio_total || 0),
-      
-      // --- ¡AQUÍ ESTABA EL CULPABLE! ---
-      // Faltaba pasar este dato. Ahora ya pasará al componente.
       clave_sat: item.clave_sat 
-      // --------------------------------
     }));
 
     return datosAdaptados;
@@ -48,5 +45,17 @@ export const getInventario = async () => {
   } catch (error) {
     console.error("Error al obtener inventario:", error);
     return [];
+  }
+};
+
+// --- AGREGADO: ESTA ES LA FUNCIÓN QUE TE FALTABA ---
+export const updateInventarioPrecios = async (items: any[]) => {
+  try {
+    // Usamos 'put' para actualizar. Enviamos el array de items modificado.
+    const response = await axios.put(`${API_URL}/inventario/precios`, items, getAuthConfig());
+    return response.data;
+  } catch (error) {
+    console.error("Error actualizando precios:", error);
+    throw error; // Re-lanzamos el error para que el componente lo capture
   }
 };

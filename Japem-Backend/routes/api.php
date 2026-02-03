@@ -11,7 +11,7 @@ use App\Http\Controllers\EntregaController;
 use App\Http\Controllers\DistribucionController;
 use App\Http\Controllers\InventarioController;
 use App\Http\Controllers\SettingsController;
-use App\Http\Controllers\DashboardController; // <--- 1. IMPORTANTE: AGREGAR ESTO
+use App\Http\Controllers\DashboardController;
 
 // --- Rutas Públicas ---
 Route::post('/login', [AuthController::class, 'login']);
@@ -24,7 +24,6 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     // 0. DASHBOARD (INICIO)
     // ==========================================
-    // Esta es la ruta que te faltaba:
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // ==========================================
@@ -37,9 +36,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // ==========================================
     Route::apiResource('donativos', DonativoController::class);
 
-    // Inventario
+    // ==========================================
+    // INVENTARIO (Aquí agregué la ruta faltante)
+    // ==========================================
     Route::get('/inventario', [InventarioController::class, 'index']);
     Route::get('/inventario/{id}/detalles', [InventarioController::class, 'detalles']);
+
+    // <--- ESTA ES LA NUEVA RUTA PARA GUARDAR PRECIOS --->
+    Route::put('/inventario/precios', [InventarioController::class, 'updatePrices']);
 
     // ==========================================
     // 3. MÓDULO DE IAPs

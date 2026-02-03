@@ -4,23 +4,32 @@ import axios from "axios";
 import { Modal } from "../../components/ui/Modal";
 import Swal from 'sweetalert2'; 
 
-import { getInventario, type ItemInventario } from "../../services/inventarioService";
+import { getInventario } from "../../services/inventarioService";
 import { guardarAsignacion } from "../../services/distribucionService";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
-export const EntregasView = () => {
+// 1. DEFINIMOS LA INTERFAZ DE PROPS
+interface EntregasViewProps {
+  userRole: string;
+}
+
+// 2. RECIBIMOS LA PROP userRole
+export const EntregasView = ({ userRole }: EntregasViewProps) => {
+  
+  // 3. DEFINIMOS SI ES SOLO LECTURA
+  const isReadOnly = userRole === 'lector';
+
   // --- ESTADOS ---
   const [inventario, setInventario] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [sugerencias, setSugerencias] = useState<any[]>([]);
   
   // Estados de Carga
-  const [loading, setLoading] = useState(false); // <--- NUEVO: Carga del inventario (Izquierda)
-  const [loadingMatch, setLoadingMatch] = useState(false); // Carga de sugerencias (Derecha)
+  const [loading, setLoading] = useState(false); 
+  const [loadingMatch, setLoadingMatch] = useState(false); 
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // Estado acepta string para permitir el campo vacío al borrar
   const [cantidadAAsignar, setCantidadAAsignar] = useState<number | string>(0);
   const [iapSeleccionada, setIapSeleccionada] = useState<any | null>(null);
 
@@ -30,10 +39,9 @@ export const EntregasView = () => {
 
   const loadInventario = async () => {
     try {
-      setLoading(true); // <--- INICIO CARGA
+      setLoading(true); 
       const data = await getInventario();
       if (Array.isArray(data)) {
-          // Filtramos usando stock_actual (el real) o cantidad (el histórico) como fallback
           setInventario(data.filter((i: any) => (i.stock_actual ?? i.cantidad ?? 0) > 0));
       } else {
           console.error("El formato del inventario no es válido:", data);
@@ -43,7 +51,7 @@ export const EntregasView = () => {
       console.error("Error cargando inventario", error);
       setInventario([]);
     } finally {
-      setLoading(false); // <--- FIN CARGA
+      setLoading(false); 
     }
   };
 
@@ -79,6 +87,9 @@ export const EntregasView = () => {
   };
 
   const handleInitiateAsignacion = (iap: any) => {
+    // Protección extra (aunque el botón se oculte)
+    if (isReadOnly) return;
+    
     setIapSeleccionada(iap);
     setIsModalOpen(true);
   };
@@ -87,9 +98,14 @@ export const EntregasView = () => {
   // LÓGICA DE ASIGNACIÓN
   // ==========================================
   const handleConfirmAsignacion = async () => {
+    // 4. PROTECCIÓN DE SEGURIDAD EN LA ACCIÓN
+    if (isReadOnly) {
+        Swal.fire('Acceso Denegado', 'No tienes permisos para asignar entregas.', 'error');
+        return;
+    }
+
     if (!selectedItem || !iapSeleccionada) return;
 
-    // Aseguramos conversión a número antes de validar
     const cantidadFinal = Number(cantidadAAsignar);
 
     if (cantidadFinal <= 0) {
@@ -138,7 +154,7 @@ export const EntregasView = () => {
       setIsModalOpen(false);
       setSelectedItem(null); 
       setSugerencias([]);
-      loadInventario();      
+      loadInventario();       
 
     } catch (error: any) {
       console.error("Error completo:", error);
@@ -176,7 +192,6 @@ export const EntregasView = () => {
           1. Inventario Disponible
         </h3>
 
-        {/* --- LÓGICA DE LOADING APLICADA AQUÍ --- */}
         {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 h-full animate-in fade-in">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#719c44] mb-4"></div>
@@ -270,7 +285,8 @@ export const EntregasView = () => {
                                 <th className="p-4 text-center">Nivel</th>
                                 <th className="p-4 text-center">Historial</th>
                                 <th className="p-4">Motivos</th>
-                                <th className="p-4 text-center">Acción</th>
+                                {/* OCULTAR HEADER ACCIÓN SI ES LECTOR (OPCIONAL, PERO RECOMENDADO) */}
+                                {!isReadOnly && <th className="p-4 text-center">Acción</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#f2f5f0]">
@@ -314,14 +330,18 @@ export const EntregasView = () => {
                                             ))}
                                         </div>
                                     </td>
-                                    <td className="p-4 text-center">
-                                        <button 
-                                            onClick={() => handleInitiateAsignacion(iap)}
-                                            className="bg-[#719c44] hover:bg-[#5e8239] text-white text-xs px-4 py-2 rounded-lg font-bold transition-all transform active:scale-95 shadow-md hover:shadow-lg opacity-0 group-hover:opacity-100 flex items-center gap-1 mx-auto"
-                                        >
-                                            Asignar <ArrowRight size={12}/>
-                                        </button>
-                                    </td>
+                                    
+                                    {/* 5. CONDICIONAL: OCULTAR BOTÓN ASIGNAR SI ES LECTOR */}
+                                    {!isReadOnly && (
+                                        <td className="p-4 text-center">
+                                            <button 
+                                                onClick={() => handleInitiateAsignacion(iap)}
+                                                className="bg-[#719c44] hover:bg-[#5e8239] text-white text-xs px-4 py-2 rounded-lg font-bold transition-all transform active:scale-95 shadow-md hover:shadow-lg opacity-0 group-hover:opacity-100 flex items-center gap-1 mx-auto"
+                                            >
+                                                Asignar <ArrowRight size={12}/>
+                                            </button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                         </tbody>
@@ -331,53 +351,52 @@ export const EntregasView = () => {
         )}
       </div>
 
-      {/* MODAL CONFIRMACIÓN */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Confirmar Salida de Almacén" variant="japem">
-        <div className="space-y-6 p-2">
-            <div className="bg-[#f2f5f0] p-5 rounded-xl border border-[#c0c6b6] flex justify-between items-center shadow-sm">
-                <div>
-                    <p className="text-xs text-[#719c44] font-bold uppercase mb-1 flex items-center gap-1"><ShieldCheck size={12}/> Se entregará a:</p>
-                    <p className="text-lg font-bold text-[#353131] leading-tight">{iapSeleccionada?.nombre_iap}</p>
-                </div>
-                <div className="text-right">
-                    <p className="text-xs text-[#719c44] font-bold uppercase mb-1">Producto:</p>
-                    <p className="text-sm font-bold text-[#353131]">{selectedItem?.nombre_producto}</p>
-                </div>
-            </div>
-            
-            <div className="bg-white p-4 rounded-xl border border-[#e5e7eb]">
-                <label className="block text-sm font-bold text-[#353131] mb-2">Cantidad a Entregar ({selectedItem?.unidad_medida})</label>
-                <div className="flex items-center gap-4">
-                    <input 
-                        type="number" 
-                        min="1"
-                        max={selectedItem?.stock_actual ?? selectedItem?.cantidad}
-                        value={cantidadAAsignar}
-                        
-                        // LÓGICA DE INPUT VACÍO
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            setCantidadAAsignar(val === "" ? "" : Number(val));
-                        }}
-                        
-                        className="flex-1 p-3 border-2 border-[#c0c6b6] rounded-xl font-bold text-2xl text-center text-[#353131] focus:border-[#719c44] outline-none transition-colors bg-[#f9fafb]"
-                        autoFocus
-                    />
-                    <div className="text-right text-xs text-[#817e7e] font-medium min-w-[80px]">
-                        Disponible:<br/>
-                        <span className="text-lg font-bold text-[#719c44]">{selectedItem?.stock_actual ?? selectedItem?.cantidad}</span>
+      {/* MODAL CONFIRMACIÓN (Solo se renderiza si no es lector, protección adicional) */}
+      {!isReadOnly && (
+        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Confirmar Salida de Almacén" variant="japem">
+            <div className="space-y-6 p-2">
+                <div className="bg-[#f2f5f0] p-5 rounded-xl border border-[#c0c6b6] flex justify-between items-center shadow-sm">
+                    <div>
+                        <p className="text-xs text-[#719c44] font-bold uppercase mb-1 flex items-center gap-1"><ShieldCheck size={12}/> Se entregará a:</p>
+                        <p className="text-lg font-bold text-[#353131] leading-tight">{iapSeleccionada?.nombre_iap}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs text-[#719c44] font-bold uppercase mb-1">Producto:</p>
+                        <p className="text-sm font-bold text-[#353131]">{selectedItem?.nombre_producto}</p>
                     </div>
                 </div>
-            </div>
+                
+                <div className="bg-white p-4 rounded-xl border border-[#e5e7eb]">
+                    <label className="block text-sm font-bold text-[#353131] mb-2">Cantidad a Entregar ({selectedItem?.unidad_medida})</label>
+                    <div className="flex items-center gap-4">
+                        <input 
+                            type="number" 
+                            min="1"
+                            max={selectedItem?.stock_actual ?? selectedItem?.cantidad}
+                            value={cantidadAAsignar}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setCantidadAAsignar(val === "" ? "" : Number(val));
+                            }}
+                            className="flex-1 p-3 border-2 border-[#c0c6b6] rounded-xl font-bold text-2xl text-center text-[#353131] focus:border-[#719c44] outline-none transition-colors bg-[#f9fafb]"
+                            autoFocus
+                        />
+                        <div className="text-right text-xs text-[#817e7e] font-medium min-w-[80px]">
+                            Disponible:<br/>
+                            <span className="text-lg font-bold text-[#719c44]">{selectedItem?.stock_actual ?? selectedItem?.cantidad}</span>
+                        </div>
+                    </div>
+                </div>
 
-            <button 
-                onClick={handleConfirmAsignacion}
-                className="w-full bg-[#719c44] hover:bg-[#5e8239] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#719c44]/30 flex justify-center items-center gap-2 transform active:scale-95 transition-all"
-            >
-                <CheckCircle size={20} /> Confirmar y Generar Vale
-            </button>
-        </div>
-      </Modal>
+                <button 
+                    onClick={handleConfirmAsignacion}
+                    className="w-full bg-[#719c44] hover:bg-[#5e8239] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#719c44]/30 flex justify-center items-center gap-2 transform active:scale-95 transition-all"
+                >
+                    <CheckCircle size={20} /> Confirmar y Generar Vale
+                </button>
+            </div>
+        </Modal>
+      )}
 
     </div>
   );

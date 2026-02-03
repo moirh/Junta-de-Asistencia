@@ -6,7 +6,7 @@ import {
 import { Table } from "../../components/ui/Table";
 import { Modal } from "../../components/ui/Modal";
 import axios from "axios";
-import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
+import Swal from 'sweetalert2'; 
 
 const API_URL = "http://127.0.0.1:8000/api";
 
@@ -27,7 +27,17 @@ interface Iap {
   veces_donado: number;
 }
 
-export const IapTable = () => {
+// 1. INTERFAZ DE PROPS
+interface IapTableProps {
+  userRole: string;
+}
+
+// 2. RECIBIMOS EL ROL
+export const IapTable = ({ userRole }: IapTableProps) => {
+  
+  // 3. DEFINIMOS PERMISO LECTURA
+  const isReadOnly = userRole === 'lector';
+
   const [iaps, setIaps] = useState<Iap[]>([]);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,10 +82,17 @@ export const IapTable = () => {
   };
 
   // ==========================================
-  // LÓGICA DE GUARDAR (CON SWEETALERT)
+  // LÓGICA DE GUARDAR
   // ==========================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // PROTECCIÓN DE SEGURIDAD
+    if (isReadOnly) {
+        Swal.fire('Error', 'No tienes permisos para realizar esta acción.', 'error');
+        return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -83,7 +100,6 @@ export const IapTable = () => {
       if (isEditing && form.id) {
         await axios.put(`${API_URL}/iaps/${form.id}`, form, { headers });
         
-        // Alerta Éxito Edición
         Swal.fire({
             title: '¡Actualizada!',
             text: 'La información de la IAP se actualizó correctamente.',
@@ -95,7 +111,6 @@ export const IapTable = () => {
       } else {
         await axios.post(`${API_URL}/iaps`, form, { headers });
         
-        // Alerta Éxito Registro
         Swal.fire({
             title: '¡Registrada!',
             text: 'La nueva IAP ha sido agregada al padrón.',
@@ -112,7 +127,6 @@ export const IapTable = () => {
 
     } catch (error) {
       console.error(error);
-      // Alerta Error
       Swal.fire({
         title: 'Error',
         text: 'Hubo un problema al guardar la IAP. Verifica los datos.',
@@ -123,9 +137,12 @@ export const IapTable = () => {
   };
 
   // ==========================================
-  // LÓGICA DE ELIMINAR (CON SWEETALERT)
+  // LÓGICA DE ELIMINAR
   // ==========================================
   const handleDelete = async (id: number) => {
+    // PROTECCIÓN DE SEGURIDAD
+    if (isReadOnly) return;
+
     const result = await Swal.fire({
         title: '¿Estás seguro?',
         text: "Se eliminará esta IAP del padrón y su historial.",
@@ -159,12 +176,18 @@ export const IapTable = () => {
   };
 
   const handleEdit = (iap: Iap) => {
+    // Protección adicional
+    if (isReadOnly) return;
+
     setForm(iap);
     setIsEditing(true);
     setIsModalOpen(true);
   };
 
   const openNewModal = () => {
+    // Protección adicional
+    if (isReadOnly) return;
+
     setForm(initialForm);
     setIsEditing(false);
     setIsModalOpen(true);
@@ -175,13 +198,15 @@ export const IapTable = () => {
     iap.rubro.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // 4. COLUMNAS DINÁMICAS (Ocultar acciones si es lector)
   const columns = [
     { key: "nombre_iap" as keyof Iap, label: "Institución" },
     { key: "rubro" as keyof Iap, label: "Rubro" },
     { key: "necesidad_primaria" as keyof Iap, label: "Necesidad Principal" },
     { key: "es_certificada" as keyof Iap, label: "Validaciones" },
     { key: "veces_donado" as keyof Iap, label: "Historial" },
-    { key: "id" as keyof Iap, label: "Acciones" },
+    // Solo agregamos la columna acciones si NO es lector
+    ...(!isReadOnly ? [{ key: "id" as keyof Iap, label: "Acciones" }] : []),
   ];
 
   return (
@@ -197,15 +222,18 @@ export const IapTable = () => {
             <p className="text-[#817e7e] mt-1">Directorio de instituciones y análisis de necesidades.</p>
         </div>
         
-        <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
-            <button 
-                onClick={openNewModal}
-                className="group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
-            >
-                <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" /> 
-                <span className="hidden sm:inline">Nueva IAP</span>
-            </button>
-        </div>
+        {/* 5. OCULTAR BOTÓN NUEVA IAP SI ES LECTOR */}
+        {!isReadOnly && (
+            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
+                <button 
+                    onClick={openNewModal}
+                    className="group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
+                >
+                    <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" /> 
+                    <span className="hidden sm:inline">Nueva IAP</span>
+                </button>
+            </div>
+        )}
       </div>
 
       {loading ? (
@@ -254,7 +282,7 @@ export const IapTable = () => {
               
               if (key === "es_certificada") {
                   return (
-                      <div className="flex gap-2 justify-center">
+                      <div className="flex gap-2 justify-start">
                           <div title={row.es_certificada ? "Certificada" : "No Certificada"}>
                               <Award size={18} className={`transition-transform hover:scale-125 ${row.es_certificada ? "text-yellow-500" : "text-[#c0c6b6]"}`}/>
                           </div>
@@ -269,11 +297,14 @@ export const IapTable = () => {
               }
 
               if (key === "veces_donado") {
-                  return <div className="flex justify-center"><span className="text-xs font-bold text-[#817e7e] flex items-center gap-1"><History size={12}/> {value}</span></div>;
+                  return <div className="flex justify-start"><span className="text-xs font-bold text-[#817e7e] flex items-center gap-1"><History size={12}/> {value}</span></div>;
               }
               if (key === "id") {
+                  // Doble chequeo
+                  if (isReadOnly) return null;
+
                   return (
-                      <div className="flex gap-2 justify-center">
+                      <div className="flex gap-2 justify-start">
                           <button onClick={() => handleEdit(row)} className="p-1.5 hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] rounded transition hover:scale-110"><Edit size={16}/></button>
                           <button onClick={() => row.id && handleDelete(row.id)} className="p-1.5 hover:bg-red-50 text-[#817e7e] hover:text-red-500 rounded transition hover:scale-110"><Trash2 size={16}/></button>
                       </div>
@@ -285,172 +316,174 @@ export const IapTable = () => {
         </div>
       )}
 
-      {/* --- MODAL --- */}
-      <Modal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        title={isEditing ? "Editar IAP" : "Registrar Nueva IAP"} 
-        size="extraLarge"
-        variant="japem" 
-        icon={<Building2 />} 
-      >
-        <form onSubmit={handleSave} className="space-y-6 p-1">
-            
-            {/* 1. SECCIÓN: IDENTIDAD */}
-            <div className="p-5 bg-[#f2f5f0] rounded-xl border border-[#c0c6b6]">
-                <h4 className="text-xs font-bold text-[#719c44] uppercase mb-4 flex items-center gap-2">
-                    <Building2 size={14}/> Identidad y Estatus
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="md:col-span-2">
-                        <label className="text-xs font-bold text-[#353131] block mb-1">Nombre de la IAP *</label>
-                        <input type="text" required className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.nombre_iap} onChange={e => setForm({...form, nombre_iap: e.target.value})} />
-                    </div>
-                    
-                    <div>
-                        <label className="text-xs font-bold text-[#353131] block mb-1">Estatus *</label>
-                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.estatus || ""} onChange={e => setForm({...form, estatus: e.target.value})}>
-                            <option value="Activa">Activa</option>
-                            <option value="Inactiva">Inactiva</option>
-                            <option value="Suspendida">Suspendida</option>
-                            <option value="En Proceso">En Proceso</option>
-                        </select>
-                    </div>
+      {/* --- MODAL (Solo se renderiza si no es lector) --- */}
+      {!isReadOnly && (
+        <Modal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            title={isEditing ? "Editar IAP" : "Registrar Nueva IAP"} 
+            size="extraLarge"
+            variant="japem" 
+            icon={<Building2 />} 
+        >
+            <form onSubmit={handleSave} className="space-y-6 p-1">
+                {/* ... (Todo tu formulario original, no se toca nada de adentro) ... */}
+                {/* 1. SECCIÓN: IDENTIDAD */}
+                <div className="p-5 bg-[#f2f5f0] rounded-xl border border-[#c0c6b6]">
+                    <h4 className="text-xs font-bold text-[#719c44] uppercase mb-4 flex items-center gap-2">
+                        <Building2 size={14}/> Identidad y Estatus
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Nombre de la IAP *</label>
+                            <input type="text" required className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.nombre_iap} onChange={e => setForm({...form, nombre_iap: e.target.value})} />
+                        </div>
+                        
+                        <div>
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Estatus *</label>
+                            <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.estatus || ""} onChange={e => setForm({...form, estatus: e.target.value})}>
+                                <option value="Activa">Activa</option>
+                                <option value="Inactiva">Inactiva</option>
+                                <option value="Suspendida">Suspendida</option>
+                                <option value="En Proceso">En Proceso</option>
+                            </select>
+                        </div>
 
-                    <div>
-                        <label className="text-xs font-bold text-[#353131] block mb-1">Clasificación</label>
-                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.clasificacion || ""} onChange={e => setForm({...form, clasificacion: e.target.value})}>
-                            <option value="A1">A1</option><option value="A2">A2</option><option value="A3">A3</option><option value="A4">A4</option>
-                            <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option>
-                            <option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option><option value="C4">C4</option>
-                            <option value="D">D</option>
-                        </select>
+                        <div>
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Clasificación</label>
+                            <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.clasificacion || ""} onChange={e => setForm({...form, clasificacion: e.target.value})}>
+                                <option value="A1">A1</option><option value="A2">A2</option><option value="A3">A3</option><option value="A4">A4</option>
+                                <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option>
+                                <option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option><option value="C4">C4</option>
+                                <option value="D">D</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            {/* 2. SECCIÓN: ACTIVIDAD */}
-            <div className="p-5 bg-[#f9fafb] rounded-xl border border-[#e5e7eb]">
-                <h4 className="text-xs font-bold text-[#817e7e] uppercase mb-4 flex items-center gap-2">
-                    <Activity size={14}/> Actividad Asistencial
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                        <label className="text-xs font-bold text-[#353131] block mb-1">Rubro *</label>
-                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.rubro || ""} onChange={e => setForm({...form, rubro: e.target.value})}>
-                            <option value="Ancianos">Ancianos</option>
-                            <option value="Desarrollo Social">Desarrollo Social</option>
-                            <option value="Educación">Educación</option>
-                            <option value="Médico">Médico</option>
-                            <option value="Niñas, Niños y Adolescentes">Niñas, Niños y Adolescentes</option>
-                            <option value="Personas con Discapacidad">Personas con Discapacidad</option>
-                            <option value="No Proporcionado">No Proporcionado</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-[#353131] block mb-1">Actividad Específica</label>
-                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.actividad_asistencial || ''} onChange={e => setForm({...form, actividad_asistencial: e.target.value})} >
-                                <option value="">Seleccione una opción</option>
-                                <option value="Alojamiento y Asistencia Residencial para Población Vulnerable">Alojamiento y Asistencia Residencial para Población Vulnerable</option>
-                                <option value="Capacitación Laboral y Desarrollo de Habilidades">Capacitación Laboral y Desarrollo de Habilidades</option>
-                                <option value="Cuidado Residencial Institucional para Niñez y Adolescencia">Cuidado Residencial Institucional para Niñez y Adolescencia</option>
-                                <option value="Desarrollo Comunitario y Asistencia Social">Desarrollo Comunitario y Asistencia Social</option>
-                                <option value="Educación Formal y Académica">Educación Formal y Académica</option>
-                                <option value="Prevención y Tratamiento de Adicciones">Prevención y Tratamiento de Adicciones</option>
-                                <option value="Rehabilitación Física, Inclusión y Atención a la Discapacidad">Rehabilitación Física, Inclusión y Atención a la Discapacidad</option>
-                                <option value="Salud Mental, Apoyo Psicosocial y Atención a Víctimas">Salud Mental, Apoyo Psicosocial y Atención a Víctimas</option>
-                                <option value="Salud Visual y Atención Oftalmológica Integral">Salud Visual y Atención Oftalmológica Integral</option>
-                                <option value="Seguridad Alimentaria y Nutrición">Seguridad Alimentaria y Nutrición</option>
-                                <option value="Servicios de Atención Médica Clínica y Especializada">Servicios de Atención Médica Clínica y Especializada</option>
+                {/* 2. SECCIÓN: ACTIVIDAD */}
+                <div className="p-5 bg-[#f9fafb] rounded-xl border border-[#e5e7eb]">
+                    <h4 className="text-xs font-bold text-[#817e7e] uppercase mb-4 flex items-center gap-2">
+                        <Activity size={14}/> Actividad Asistencial
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Rubro *</label>
+                            <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.rubro || ""} onChange={e => setForm({...form, rubro: e.target.value})}>
+                                <option value="Ancianos">Ancianos</option>
+                                <option value="Desarrollo Social">Desarrollo Social</option>
+                                <option value="Educación">Educación</option>
+                                <option value="Médico">Médico</option>
+                                <option value="Niñas, Niños y Adolescentes">Niñas, Niños y Adolescentes</option>
+                                <option value="Personas con Discapacidad">Personas con Discapacidad</option>
                                 <option value="No Proporcionado">No Proporcionado</option>
                             </select>
-                    </div>
-                </div>
-            </div>
-
-            {/* 3. SECCIÓN: BENEFICIARIOS Y NECESIDADES */}
-            <div className="p-5 bg-[#f2f5f0] rounded-xl border border-[#c0c6b6]">
-                <h4 className="text-xs font-bold text-[#719c44] uppercase mb-4 flex items-center gap-2">
-                    <Heart size={14}/> Población y Necesidades
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div>
-                        <label className="text-xs font-bold text-[#353131] block mb-1">Tipo Beneficiario</label>
-                        <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.tipo_beneficiario || ''} onChange={e => setForm({...form, tipo_beneficiario: e.target.value})} >
-                                <option value="">Seleccione una opción</option>
-                                <option value="Fijos">Fijos</option>
-                                <option value="Temporales">Temporales</option>
-                                <option value="Flotantes">Flotantes</option>
-                            </select>
-                    </div>
-                    
-                    <div>
-                        <label className="text-xs font-bold text-[#353131] block mb-1">Población (Cant.)</label>
-                        <input 
-                            type="number" 
-                            min="0" 
-                            className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" 
-                            value={form.personas_beneficiadas === 0 ? "" : form.personas_beneficiadas} 
-                            onChange={e => setForm({...form, personas_beneficiadas: e.target.value === "" ? 0 : Number(e.target.value)})} 
-                        />
-                    </div>
-                    <div></div>
-
-                    <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label className="text-xs font-bold text-[#353131] block mb-1">Necesidad Primaria (Prioridad)</label>
-                            <input type="text" className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" placeholder="Ej. ARROZ, MEDICAMENTOS" value={form.necesidad_primaria || ''} onChange={e => setForm({...form, necesidad_primaria: e.target.value})} />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-[#353131] block mb-1">Necesidad Complementaria</label>
-                            <input type="text" className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" placeholder="Ej. ROPA, JUGUETES" value={form.necesidad_complementaria || ''} onChange={e => setForm({...form, necesidad_complementaria: e.target.value})} />
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Actividad Específica</label>
+                            <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.actividad_asistencial || ''} onChange={e => setForm({...form, actividad_asistencial: e.target.value})} >
+                                    <option value="">Seleccione una opción</option>
+                                    <option value="Alojamiento y Asistencia Residencial para Población Vulnerable">Alojamiento y Asistencia Residencial para Población Vulnerable</option>
+                                    <option value="Capacitación Laboral y Desarrollo de Habilidades">Capacitación Laboral y Desarrollo de Habilidades</option>
+                                    <option value="Cuidado Residencial Institucional para Niñez y Adolescencia">Cuidado Residencial Institucional para Niñez y Adolescencia</option>
+                                    <option value="Desarrollo Comunitario y Asistencia Social">Desarrollo Comunitario y Asistencia Social</option>
+                                    <option value="Educación Formal y Académica">Educación Formal y Académica</option>
+                                    <option value="Prevención y Tratamiento de Adicciones">Prevención y Tratamiento de Adicciones</option>
+                                    <option value="Rehabilitación Física, Inclusión y Atención a la Discapacidad">Rehabilitación Física, Inclusión y Atención a la Discapacidad</option>
+                                    <option value="Salud Mental, Apoyo Psicosocial y Atención a Víctimas">Salud Mental, Apoyo Psicosocial y Atención a Víctimas</option>
+                                    <option value="Salud Visual y Atención Oftalmológica Integral">Salud Visual y Atención Oftalmológica Integral</option>
+                                    <option value="Seguridad Alimentaria y Nutrición">Seguridad Alimentaria y Nutrición</option>
+                                    <option value="Servicios de Atención Médica Clínica y Especializada">Servicios de Atención Médica Clínica y Especializada</option>
+                                    <option value="No Proporcionado">No Proporcionado</option>
+                                </select>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* 4. SECCIÓN: VALIDACIONES */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
-                    <div className="bg-yellow-100 p-2 rounded-full text-yellow-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
-                        <Award size={20} />
-                    </div>
-                    <div className="flex-1">
-                        <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Certificada</span>
-                    </div>
-                    <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.es_certificada} onChange={e => setForm({...form, es_certificada: e.target.checked})} />
-                </label>
+                {/* 3. SECCIÓN: BENEFICIARIOS Y NECESIDADES */}
+                <div className="p-5 bg-[#f2f5f0] rounded-xl border border-[#c0c6b6]">
+                    <h4 className="text-xs font-bold text-[#719c44] uppercase mb-4 flex items-center gap-2">
+                        <Heart size={14}/> Población y Necesidades
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Tipo Beneficiario</label>
+                            <select className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" value={form.tipo_beneficiario || ''} onChange={e => setForm({...form, tipo_beneficiario: e.target.value})} >
+                                    <option value="">Seleccione una opción</option>
+                                    <option value="Fijos">Fijos</option>
+                                    <option value="Temporales">Temporales</option>
+                                    <option value="Flotantes">Flotantes</option>
+                                </select>
+                        </div>
+                        
+                        <div>
+                            <label className="text-xs font-bold text-[#353131] block mb-1">Población (Cant.)</label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" 
+                                value={form.personas_beneficiadas === 0 ? "" : form.personas_beneficiadas} 
+                                onChange={e => setForm({...form, personas_beneficiadas: e.target.value === "" ? 0 : Number(e.target.value)})} 
+                            />
+                        </div>
+                        <div></div>
 
-                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
-                    <div className="bg-blue-100 p-2 rounded-full text-blue-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
-                        <FileCheck size={20} />
+                        <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div>
+                                <label className="text-xs font-bold text-[#353131] block mb-1">Necesidad Primaria (Prioridad)</label>
+                                <input type="text" className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" placeholder="Ej. ARROZ, MEDICAMENTOS" value={form.necesidad_primaria || ''} onChange={e => setForm({...form, necesidad_primaria: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-[#353131] block mb-1">Necesidad Complementaria</label>
+                                <input type="text" className="w-full px-4 py-2.5 border border-[#c0c6b6] rounded-lg text-sm uppercase focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none transition-all text-[#353131]" placeholder="Ej. ROPA, JUGUETES" value={form.necesidad_complementaria || ''} onChange={e => setForm({...form, necesidad_complementaria: e.target.value})} />
+                            </div>
+                        </div>
                     </div>
-                    <div className="flex-1">
-                        <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Donataria</span>
-                    </div>
-                    <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.tiene_donataria_autorizada} onChange={e => setForm({...form, tiene_donataria_autorizada: e.target.checked})} />
-                </label>
+                </div>
 
-                <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
-                    <div className="bg-green-100 p-2 rounded-full text-green-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
-                        <Users size={20} />
-                    </div>
-                    <div className="flex-1">
-                        <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Padrón</span>
-                    </div>
-                    <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.tiene_padron_beneficiarios} onChange={e => setForm({...form, tiene_padron_beneficiarios: e.target.checked})} />
-                </label>
-            </div>
+                {/* 4. SECCIÓN: VALIDACIONES */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                    <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
+                        <div className="bg-yellow-100 p-2 rounded-full text-yellow-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
+                            <Award size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Certificada</span>
+                        </div>
+                        <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.es_certificada} onChange={e => setForm({...form, es_certificada: e.target.checked})} />
+                    </label>
 
-            <div className="flex justify-end gap-3 border-t pt-6 border-[#c0c6b6]/30">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all">Cancelar</button>
-                <button type="submit" className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-all transform active:scale-95 flex items-center gap-2">
-                    <CheckCircle size={20}/>
-                    {isEditing ? "Guardar Cambios" : "Registrar IAP"}
-                </button>
-            </div>
-        </form>
-      </Modal>
+                    <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
+                        <div className="bg-blue-100 p-2 rounded-full text-blue-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
+                            <FileCheck size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Donataria</span>
+                        </div>
+                        <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.tiene_donataria_autorizada} onChange={e => setForm({...form, tiene_donataria_autorizada: e.target.checked})} />
+                    </label>
+
+                    <label className="flex items-center gap-3 cursor-pointer p-4 border-2 border-transparent bg-white rounded-xl shadow-sm hover:border-[#719c44] hover:shadow-md transition-all group has-[:checked]:border-[#719c44] has-[:checked]:bg-[#f2f5f0]">
+                        <div className="bg-green-100 p-2 rounded-full text-green-600 group-has-[:checked]:bg-[#719c44] group-has-[:checked]:text-white transition-colors">
+                            <Users size={20} />
+                        </div>
+                        <div className="flex-1">
+                            <span className="font-bold text-[#353131] group-has-[:checked]:text-[#719c44] block text-sm">Padrón</span>
+                        </div>
+                        <input type="checkbox" className="w-5 h-5 accent-[#719c44] rounded" checked={form.tiene_padron_beneficiarios} onChange={e => setForm({...form, tiene_padron_beneficiarios: e.target.checked})} />
+                    </label>
+                </div>
+
+                <div className="flex justify-end gap-3 border-t pt-6 border-[#c0c6b6]/30">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all">Cancelar</button>
+                    <button type="submit" className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-all transform active:scale-95 flex items-center gap-2">
+                        <CheckCircle size={20}/>
+                        {isEditing ? "Guardar Cambios" : "Registrar IAP"}
+                    </button>
+                </div>
+            </form>
+        </Modal>
+      )}
     </div>
   );
 };
