@@ -9,17 +9,27 @@ class Asignacion extends Model
 {
     use HasFactory;
 
-    protected $table = 'asignaciones'; // Nombre explícito de la tabla
+    protected $table = 'asignaciones';
 
-    protected $fillable = ['iap_id', 'estatus'];
+    protected $fillable = [
+        'iap_id',
+        'estatus', // 'pendiente', 'procesado', 'cancelado'
+        'fecha_asignacion',
+        'user_id'
+    ];
 
-    // Relación con la IAP
+    /**
+     * Relación: Una asignación es para una IAP
+     */
     public function iap()
     {
         return $this->belongsTo(Iap::class, 'iap_id');
     }
 
-    // Relación con los detalles
+    /**
+     * Relación: Una asignación tiene muchos detalles (productos)
+     * IMPORTANTE: El nombre 'detalles' es el que usa el controlador.
+     */
     public function detalles()
     {
         return $this->hasMany(DetalleAsignacion::class, 'asignacion_id');

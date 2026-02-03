@@ -2,119 +2,96 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Asignacion;
+use App\Models\DetalleAsignacion;
+use App\Models\Inventario;
+use App\Models\Iap;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DistribucionController extends Controller
 {
+    public function index()
+    {
+        return Asignacion::with(['iap', 'detalles.inventario'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
     public function store(Request $request)
     {
-        // 1. Validamos los datos básicos
+        // 1. Validaciones
         $request->validate([
-            'iap_id' => 'required|exists:iaps,id', 
+            'iap_id' => 'required|exists:iaps,id',
             'detalles' => 'required|array',
             'detalles.*.inventario_id' => 'required|exists:inventarios,id',
             'detalles.*.cantidad' => 'required|numeric|min:1',
         ]);
 
         try {
-            DB::beginTransaction(); 
+            DB::beginTransaction();
 
-            // --- PASO 1: CREAR LA ASIGNACIÓN PADRE (EL "FOLIO") ---
-            // Esto crea el registro en la tabla 'asignaciones' y nos devuelve el ID nuevo
-            $idAsignacion = DB::table('asignaciones')->insertGetId([
+            // 2. Validar stock disponible (SIN RESTAR AÚN)
+            // Agrupamos por producto para evitar duplicados en la validación
+            foreach ($request->detalles as $detalle) {
+                $inventario = Inventario::find($detalle['inventario_id']);
+
+                // CORRECCIÓN CLAVE: Validamos contra 'cantidad_actual'
+                if ($inventario->cantidad_actual < $detalle['cantidad']) {
+                    throw new \Exception("Stock insuficiente para '{$inventario->nombre_producto}'. Disponible: {$inventario->cantidad_actual}");
+                }
+            }
+
+            // 3. Crear la Asignación (Cabecera)
+            $asignacion = Asignacion::create([
                 'iap_id' => $request->iap_id,
-                // Si tienes un campo de fecha_asignacion, descomenta esto:
-                // 'fecha_asignacion' => now(), 
-                'created_at' => now(),
-                'updated_at' => now()
+                'estatus' => 'pendiente', // Importante: Nace pendiente de entrega
+                'fecha_asignacion' => now(),
             ]);
 
-            // --- PASO 2: PROCESAR LOS PRODUCTOS ---
+            // 4. Guardar los detalles
             foreach ($request->detalles as $detalle) {
-                $idRecibido = $detalle['inventario_id'];
-                $cantidadSolicitada = $detalle['cantidad'];
-
-                $productoReferencia = DB::table('inventarios')->where('id', $idRecibido)->first();
-
-                if (!$productoReferencia) {
-                    throw new \Exception("El producto con ID $idRecibido no existe.");
-                }
-
-                // Buscamos lotes (FIFO)
-                $lotes = DB::table('inventarios')
-                    ->where('nombre_producto', $productoReferencia->nombre_producto)
-                    ->where('cantidad', '>', 0)
-                    ->orderBy('id', 'asc') 
-                    ->lockForUpdate() 
-                    ->get();
-
-                $stockTotal = $lotes->sum('cantidad');
-
-                if ($stockTotal < $cantidadSolicitada) {
-                    throw new \Exception("Stock insuficiente para '{$productoReferencia->nombre_producto}'. Solicitado: $cantidadSolicitada, Disponible: $stockTotal");
-                }
-
-                // Algoritmo de resta (FIFO)
-                $pendientePorRestar = $cantidadSolicitada;
-                
-                // Variable para guardar qué ID de inventario usamos para el registro (usaremos el del último lote tocado o el principal)
-                $inventarioIdFinal = $idRecibido; 
-
-                foreach ($lotes as $lote) {
-                    if ($pendientePorRestar <= 0) break;
-                    
-                    $inventarioIdFinal = $lote->id; // Actualizamos el ID del lote que estamos usando
-
-                    if ($lote->cantidad >= $pendientePorRestar) {
-                        DB::table('inventarios')
-                            ->where('id', $lote->id)
-                            ->update(['cantidad' => $lote->cantidad - $pendientePorRestar]);
-                        $pendientePorRestar = 0;
-                    } else {
-                        $pendientePorRestar -= $lote->cantidad; 
-                        DB::table('inventarios')
-                            ->where('id', $lote->id)
-                            ->update(['cantidad' => 0]);
-                    }
-                }
-
-                // --- PASO 3: GUARDAR EL DETALLE VINCULADO AL PADRE ---
-                DB::table('detalle_asignaciones')->insert([
-                    'asignacion_id' => $idAsignacion, // <--- AQUÍ USAMOS LA ID REAL CREADA ARRIBA
-                    'inventario_id' => $inventarioIdFinal, 
-                    'cantidad' => $cantidadSolicitada,
-                    'iap_id' => $request->iap_id,
-                    'producto_nombre' => $productoReferencia->nombre_producto,
-                    'created_at' => now(),
-                    'updated_at' => now()
+                DetalleAsignacion::create([
+                    'asignacion_id' => $asignacion->id,
+                    'inventario_id' => $detalle['inventario_id'],
+                    'cantidad' => $detalle['cantidad'],
+                    'estatus' => 'pendiente'
                 ]);
             }
 
-            DB::commit(); 
+            // NOTA: No hacemos update/decrement aquí. 
+            // Eso sucederá cuando se confirme la "Entrega".
 
-            return response()->json(['message' => 'Asignación realizada exitosamente'], 201);
+            DB::commit();
 
+            return response()->json([
+                'message' => 'Asignación registrada correctamente. Lista para entrega.',
+                'folio' => $asignacion->id
+            ], 201);
         } catch (\Exception $e) {
-            DB::rollBack(); 
-            return response()->json(['message' => 'Error: ' . $e->getMessage()], 422);
+            DB::rollBack();
+            return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
-    public function historial()
+    public function show($id)
     {
-        $entregas = DB::table('detalle_asignaciones')
-            ->join('iaps', 'detalle_asignaciones.iap_id', '=', 'iaps.id')
-            ->select(
-                'detalle_asignaciones.id',
-                'detalle_asignaciones.producto_nombre',
-                'detalle_asignaciones.cantidad',
-                'detalle_asignaciones.created_at as fecha',
-                'iaps.nombre_iap' 
-            )
-            ->orderByDesc('detalle_asignaciones.created_at')
-            ->get();
+        return Asignacion::with(['iap', 'detalles.inventario'])->find($id);
+    }
 
-        return response()->json($entregas);
+    public function destroy($id)
+    {
+        $asignacion = Asignacion::find($id);
+        if (!$asignacion) return response()->json(['message' => 'No encontrado'], 404);
+
+        // Solo permitir borrar si no se ha procesado
+        if ($asignacion->estatus === 'procesado') {
+            return response()->json(['message' => 'No se puede eliminar una asignación ya entregada'], 400);
+        }
+
+        $asignacion->detalles()->delete(); // Borrar detalles hijos
+        $asignacion->delete(); // Borrar padre
+
+        return response()->json(['message' => 'Asignación eliminada']);
     }
 }

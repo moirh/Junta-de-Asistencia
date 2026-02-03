@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Inventario; // <--- ¡ASEGÚRATE DE TENER ESTA LÍNEA!
 
 class Donativo extends Model
 {
@@ -17,21 +16,24 @@ class Donativo extends Model
         'fecha_donativo',
         'monto_total_deducible',
         'observaciones',
+        'evidencia_url'
     ];
 
-    protected $casts = [
-        'fecha_donativo' => 'date',
-        'monto_total_deducible' => 'decimal:2',
-    ];
-
+    /**
+     * Relación con el Donante (Quién dio)
+     */
     public function donante()
     {
         return $this->belongsTo(Donante::class, 'donante_id');
     }
 
-    // Esta función conecta con tu tabla 'inventarios'
-    public function detalles()
+    /**
+     * Relación con Inventarios (Qué entró)
+     * ESTA ES LA FUNCIÓN QUE TE FALTABA
+     */
+    public function inventarios()
     {
+        // Un donativo tiene muchos items de inventario asociados
         return $this->hasMany(Inventario::class, 'donativo_id');
     }
 }

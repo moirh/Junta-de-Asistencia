@@ -16,7 +16,8 @@ class Inventario extends Model
         'donativo_id',
         'catalogo_producto_id',
         'nombre_producto',
-        'cantidad',
+        'cantidad',         // Se queda fija (lo que entró originalmente)
+        'cantidad_actual',  // NUEVO: Se actualizará con las entregas (Stock real)
         'estado',
         'modalidad',
         'fecha_caducidad',
@@ -28,6 +29,7 @@ class Inventario extends Model
         'precio_venta_unitario',
         'precio_venta_total'
     ];
+
     protected $appends = ['dias_en_almacen', 'semaforo_rotacion'];
 
     // 1. RELACIÓN: El inventario pertenece a un Donativo
@@ -39,19 +41,16 @@ class Inventario extends Model
     // 2. CÁLCULO INTELIGENTE: Usamos la fecha del donativo si existe
     public function getDiasEnAlmacenAttribute()
     {
-        // Por defecto usamos la fecha de creación del registro
         $fechaIngreso = $this->created_at;
 
-        // PERO, si existe un donativo padre, usamos SU fecha (la del formulario)
         if ($this->donativo) {
             $fechaIngreso = Carbon::parse($this->donativo->fecha_donativo);
         }
 
-        // Calculamos la diferencia en días con HOY
         return $fechaIngreso->diffInDays(now());
     }
 
-    // 3. SEMÁFORO (Se mantiene igual, pero ahora el cálculo de $dias es más exacto)
+    // 3. SEMÁFORO
     public function getSemaforoRotacionAttribute()
     {
         $dias = $this->dias_en_almacen;

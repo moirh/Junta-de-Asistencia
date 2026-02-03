@@ -28,7 +28,7 @@ export const DonativosTable = () => {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [selectedDonativo, setSelectedDonativo] = useState<Donativo | null>(null);
+  const [selectedDonativo, setSelectedDonativo] = useState<any | null>(null);
 
   const initialFormState = {
     donante_id: 0,
@@ -77,8 +77,8 @@ export const DonativosTable = () => {
 
       if (Array.isArray(donativosData)) {
          donativosData.forEach((d: any) => {
-            if (d.detalles && Array.isArray(d.detalles)) {
-               d.detalles.forEach((det: any) => {
+            if (d.inventarios && Array.isArray(d.inventarios)) {
+               d.inventarios.forEach((det: any) => {
                   registrarProducto(det.nombre_producto, det);
                });
             }
@@ -148,6 +148,7 @@ export const DonativosTable = () => {
         }
     }
 
+    // Cálculos automáticos (aseguramos que si es vacío "" lo trate como 0 para multiplicar)
     if (field === 'cantidad' || field === 'precio_venta_unitario') {
       const cant = Number(newDetalles[index].cantidad) || 0;
       const price = Number(newDetalles[index].precio_venta_unitario) || 0;
@@ -215,18 +216,15 @@ export const DonativosTable = () => {
     }
   };
 
-  // --- LÓGICA DE BÚSQUEDA INTEGRADA ---
-  // Preparamos los datos con un campo oculto "_busqueda" para que el Table lo use
-  const donativosParaTabla = donativos.map(d => ({
+  const donativosParaTabla = donativos.map((d: any) => ({
     ...d,
-    // Este string contiene todo lo que el usuario podría buscar
-    _busqueda: `${d.donante?.razon_social || ''} ${d.detalles?.map(p => p.nombre_producto).join(" ")} ${d.fecha_donativo}`
+    _busqueda: `${d.donante?.razon_social || ''} ${d.inventarios?.map((p: any) => p.nombre_producto).join(" ")} ${d.fecha_donativo}`
   }));
 
   const columns = [
     { key: "fecha_donativo" as keyof Donativo, label: "Fecha" },
     { key: "donante" as keyof Donativo, label: "Donante" },
-    { key: "detalles" as keyof Donativo, label: "Productos (Resumen)" }, 
+    { key: "inventarios" as any, label: "Productos (Resumen)" }, 
     { key: "monto_total_deducible" as keyof Donativo, label: "Monto Total" },
     { key: "id" as keyof Donativo, label: "Acciones" },
   ]; 
@@ -264,11 +262,10 @@ export const DonativosTable = () => {
       ) : (
         <div className="bg-white rounded-2xl shadow-xl shadow-[#c0c6b6]/20 border border-[#c0c6b6]/30 overflow-hidden">
           <Table
-            data={donativosParaTabla} // Usamos los datos procesados para el buscador
+            data={donativosParaTabla}
             columns={columns}
-            renderCell={(key, value, row) => {
+            renderCell={(key, value, row: any) => {
               
-              // 1. FECHA: Alineada a la izquierda (justify-start)
               if (key === "fecha_donativo") return (
                 <div className="flex justify-start items-center gap-2 text-[#353131]">
                     <Calendar size={16} className="text-[#719c44]" />
@@ -276,25 +273,23 @@ export const DonativosTable = () => {
                 </div>
               );
 
-              // 2. DONANTE: Alineado a la izquierda (text-left)
               if (key === "donante") return (
                 <div className="font-semibold text-[#353131] text-left">
                     {row.donante?.razon_social || "Desconocido"}
                 </div>
               );
 
-              // 3. DETALLES: Alineados a la izquierda
-              if (key === "detalles") {
-                const detalles = row.detalles || [];
-                const primeros = detalles.slice(0, 2);
-                const resto = detalles.length - 2;
+              if (key === "inventarios") {
+                const productos = row.inventarios || []; 
+                const primeros = productos.slice(0, 2);
+                const resto = productos.length - 2;
                 return (
-                  <div className="text-sm text-left"> {/* text-left aquí */}
+                  <div className="text-sm text-left">
                     {primeros.map((d: any, i: number) => (
-                      <div key={i} className="flex justify-start items-center gap-1 text-[#817e7e] mb-0.5"> {/* justify-start aquí */}
+                      <div key={i} className="flex justify-start items-center gap-1 text-[#817e7e] mb-0.5">
                         <Box size={12} className="text-[#c0c6b6]"/>
                         <span className="font-medium text-[#353131]">{d.nombre_producto}</span>
-                        <span className="text-[#817e7e] text-xs">({d.cantidad} {d.clave_unidad || d.clave_unidad})</span>
+                        <span className="text-[#817e7e] text-xs">({d.cantidad} {d.clave_unidad || d.unidad_medida})</span>
                       </div>
                     ))}
                     {resto > 0 && <span className="text-xs text-[#719c44] font-semibold">+ {resto} productos más...</span>}
@@ -302,16 +297,14 @@ export const DonativosTable = () => {
                 );
               }
 
-              // 4. MONTO: Alineado a la izquierda para coincidir con el header
               if (key === "monto_total_deducible") return (
-                <div className="flex justify-start"> {/* justify-start aquí */}
+                <div className="flex justify-start">
                     <span className="bg-[#f2f5f0] text-[#719c44] px-3 py-1 rounded-full font-bold text-sm border border-[#c0c6b6]">
                         ${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                     </span>
                 </div>
               );
 
-              // 5. ACCIONES: Centrado (Esto sí se ve bien centrado)
               if (key === "id") return (
                 <div className="flex justify-center">
                     <button onClick={() => { setSelectedDonativo(row); setIsViewModalOpen(true); }} className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm">
@@ -330,7 +323,7 @@ export const DonativosTable = () => {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Entrada" size="extraLarge" variant="japem" icon={<HandHeart />}>
         <form onSubmit={handleSave} className="space-y-8 p-1">
           <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
-            <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2 mb-4"><User size={18} /> Información del Donante</h3>
+            <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2"><User size={18} /> Información del Donante</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
               <div className="md:col-span-5 space-y-1.5">
                 <label className="text-sm font-bold text-[#353131]">Seleccionar Donante *</label>
@@ -479,25 +472,39 @@ export const DonativosTable = () => {
                       </div>
                     ) : <div className="hidden md:block md:col-span-3"></div>}
 
+                    {/* --- CORRECCIÓN CANTIDAD: Permite borrar el campo --- */}
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1"><Hash size={12} /> Cantidad</label>
                       <input 
                         type="number" 
                         min="1" 
                         className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-center text-[#353131]" 
+                        
+                        // Si el valor es 0, mostramos cadena vacía ""
                         value={detalle.cantidad === 0 ? "" : detalle.cantidad} 
-                        onChange={(e) => handleProductChange(index, "cantidad", e.target.value === "" ? 0 : Number(e.target.value))} 
+                        
+                        // Si borra, manda "", si no, manda el número
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            handleProductChange(index, "cantidad", val === "" ? "" : Number(val));
+                        }} 
                       />
                     </div>
 
+                    {/* --- CORRECCIÓN PRECIO: Permite borrar el campo --- */}
                     <div className="md:col-span-2 space-y-1">
                       <label className="text-xs font-bold text-[#817e7e] uppercase">P. Unitario</label>
                       <input 
                         type="number" 
                         step="0.01" 
                         className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm text-[#353131]" 
+                        
                         value={detalle.precio_unitario_deducible === 0 ? "" : detalle.precio_unitario_deducible} 
-                        onChange={(e) => handleProductChange(index, "precio_unitario_deducible", e.target.value === "" ? 0 : Number(e.target.value))} 
+                        
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            handleProductChange(index, "precio_unitario_deducible", val === "" ? "" : Number(val));
+                        }} 
                       />
                     </div>
                   </div>
@@ -525,25 +532,37 @@ export const DonativosTable = () => {
             </div>
             
             {/* Lista de productos en detalle */}
-            <div className="border border-[#c0c6b6]/50 rounded-xl overflow-hidden">
+            <div className="border border-[#c0c6b6]/50 rounded-xl overflow-hidden overflow-x-auto">
                 <table className="w-full text-sm text-left">
                     <thead className="bg-[#f9fafb] text-[#817e7e] font-bold uppercase text-xs">
                         <tr>
-                            <th className="px-4 py-3">Producto</th>
-                            <th className="px-4 py-3">Cant.</th>
-                            <th className="px-4 py-3">Unidad</th>
-                            <th className="px-4 py-3">P. Unit</th>
-                            <th className="px-4 py-3">Total</th>
+                            <th className="px-4 py-3 min-w-[150px]">Producto</th>
+                            <th className="px-4 py-3 text-center">Cant.</th>
+                            <th className="px-4 py-3 text-center">Unidad</th>
+                            <th className="px-4 py-3 text-right bg-gray-50 border-l border-gray-100">P. Deducible</th>
+                            <th className="px-4 py-3 text-right bg-gray-50">Total Ded.</th>
+                            <th className="px-4 py-3 text-right text-[#719c44] bg-[#f2f5f0] border-l border-[#c0c6b6]/30">P. Venta</th>
+                            <th className="px-4 py-3 text-right text-[#719c44] bg-[#f2f5f0]">Total Venta</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f2f5f0]">
-                        {selectedDonativo.detalles?.map((det:any, idx:number) => (
+                        {selectedDonativo.inventarios?.map((det:any, idx:number) => (
                             <tr key={idx} className="hover:bg-[#f2f5f0]">
                                 <td className="px-4 py-3 font-medium text-[#353131]">{det.nombre_producto}</td>
-                                <td className="px-4 py-3 text-[#353131]">{det.cantidad}</td>
-                                <td className="px-4 py-3 text-xs text-[#817e7e]">{det.clave_unidad}</td>
-                                <td className="px-4 py-3 text-[#353131]">${Number(det.precio_unitario_deducible).toLocaleString()}</td>
-                                <td className="px-4 py-3 font-bold text-[#719c44]">${(Number(det.cantidad) * Number(det.precio_unitario_deducible)).toLocaleString()}</td>
+                                <td className="px-4 py-3 text-center text-[#353131] font-bold">{det.cantidad}</td>
+                                <td className="px-4 py-3 text-center text-xs text-[#817e7e]">{det.clave_unidad}</td>
+                                <td className="px-4 py-3 text-right text-[#817e7e] border-l border-gray-100">
+                                    ${Number(det.precio_unitario_deducible).toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                                </td>
+                                <td className="px-4 py-3 text-right font-medium text-[#353131]">
+                                    ${(Number(det.cantidad) * Number(det.precio_unitario_deducible)).toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                                </td>
+                                <td className="px-4 py-3 text-right text-[#5e8239] border-l border-[#c0c6b6]/30">
+                                    ${Number(det.precio_venta_unitario ?? 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                                </td>
+                                <td className="px-4 py-3 text-right font-bold text-[#719c44]">
+                                    ${Number(det.precio_venta_total ?? (det.cantidad * (det.precio_venta_unitario ?? 0))).toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                                </td>
                             </tr>
                         ))}
                     </tbody>

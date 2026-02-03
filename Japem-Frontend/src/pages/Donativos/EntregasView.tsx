@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Package, ArrowRight, CheckCircle, PackageOpen, Star, ShieldCheck, AlertCircle, Info } from "lucide-react";
 import axios from "axios"; 
 import { Modal } from "../../components/ui/Modal";
-import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
+import Swal from 'sweetalert2'; 
 
 import { getInventario, type ItemInventario } from "../../services/inventarioService";
 import { guardarAsignacion } from "../../services/distribucionService";
@@ -11,31 +11,43 @@ const API_URL = "http://127.0.0.1:8000/api";
 
 export const EntregasView = () => {
   // --- ESTADOS ---
-  const [inventario, setInventario] = useState<ItemInventario[]>([]);
-  const [selectedItem, setSelectedItem] = useState<ItemInventario | null>(null);
+  const [inventario, setInventario] = useState<any[]>([]);
+  const [selectedItem, setSelectedItem] = useState<any | null>(null);
   const [sugerencias, setSugerencias] = useState<any[]>([]);
-  const [loadingMatch, setLoadingMatch] = useState(false);
+  
+  // Estados de Carga
+  const [loading, setLoading] = useState(false); // <--- NUEVO: Carga del inventario (Izquierda)
+  const [loadingMatch, setLoadingMatch] = useState(false); // Carga de sugerencias (Derecha)
 
-  // Estado Modal Confirmación
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [cantidadAAsignar, setCantidadAAsignar] = useState(0);
+  // Estado acepta string para permitir el campo vacío al borrar
+  const [cantidadAAsignar, setCantidadAAsignar] = useState<number | string>(0);
   const [iapSeleccionada, setIapSeleccionada] = useState<any | null>(null);
 
-  // --- CARGA INICIAL ---
   useEffect(() => {
     loadInventario();
   }, []);
 
   const loadInventario = async () => {
     try {
+      setLoading(true); // <--- INICIO CARGA
       const data = await getInventario();
-      setInventario(data.filter(i => (i.cantidad || 0) > 0));
+      if (Array.isArray(data)) {
+          // Filtramos usando stock_actual (el real) o cantidad (el histórico) como fallback
+          setInventario(data.filter((i: any) => (i.stock_actual ?? i.cantidad ?? 0) > 0));
+      } else {
+          console.error("El formato del inventario no es válido:", data);
+          setInventario([]);
+      }
     } catch (error) {
       console.error("Error cargando inventario", error);
+      setInventario([]);
+    } finally {
+      setLoading(false); // <--- FIN CARGA
     }
   };
 
-  const handleSelectProducto = async (item: ItemInventario) => {
+  const handleSelectProducto = async (item: any) => {
     setSelectedItem(item);
     setCantidadAAsignar(1);
     setIapSeleccionada(null); 
@@ -72,15 +84,27 @@ export const EntregasView = () => {
   };
 
   // ==========================================
-  // LÓGICA DE ASIGNACIÓN (CON SWEETALERT)
+  // LÓGICA DE ASIGNACIÓN
   // ==========================================
   const handleConfirmAsignacion = async () => {
     if (!selectedItem || !iapSeleccionada) return;
 
-    const stockDisponible = selectedItem.cantidad || 0;
+    // Aseguramos conversión a número antes de validar
+    const cantidadFinal = Number(cantidadAAsignar);
+
+    if (cantidadFinal <= 0) {
+        Swal.fire({
+            title: 'Cantidad Inválida',
+            text: 'Por favor ingresa una cantidad mayor a 0.',
+            icon: 'warning',
+            confirmButtonColor: '#719c44'
+        });
+        return;
+    }
+
+    const stockDisponible = selectedItem.stock_actual ?? selectedItem.cantidad ?? 0;
     
-    // Validación de Stock
-    if (cantidadAAsignar > stockDisponible) {
+    if (cantidadFinal > stockDisponible) {
         Swal.fire({
             title: 'Stock Insuficiente',
             text: `Solo tienes ${stockDisponible} unidades disponibles para asignar.`,
@@ -96,17 +120,16 @@ export const EntregasView = () => {
         detalles: [
             {
                 inventario_id: Number(selectedItem.id),
-                cantidad: Number(cantidadAAsignar)
+                cantidad: cantidadFinal
             }
         ]
       };
 
       await guardarAsignacion(payload);
       
-      // ALERTA DE ÉXITO
       Swal.fire({
         title: '¡Asignación Exitosa!',
-        text: `Se han asignado ${cantidadAAsignar} unidades a ${iapSeleccionada.nombre_iap}.`,
+        text: `Se han asignado ${cantidadFinal} unidades a ${iapSeleccionada.nombre_iap}.`,
         icon: 'success',
         confirmButtonColor: '#719c44',
         confirmButtonText: 'Excelente'
@@ -125,7 +148,6 @@ export const EntregasView = () => {
           mensajeError = error.response.data.message || JSON.stringify(error.response.data);
       }
 
-      // ALERTA DE ERROR
       Swal.fire({
         title: 'Error',
         text: mensajeError,
@@ -135,11 +157,10 @@ export const EntregasView = () => {
     }
   };
 
-  // Mantenemos colores semánticos para las clasificaciones, pero suavizados
   const getBadgeColor = (clasificacion: string) => {
     if (!clasificacion) return "bg-gray-100 text-gray-600";
     const letra = clasificacion.charAt(0);
-    if (letra === 'A') return "bg-[#f2f5f0] text-[#719c44] border-[#c0c6b6]"; // Verde Institucional
+    if (letra === 'A') return "bg-[#f2f5f0] text-[#719c44] border-[#c0c6b6]"; 
     if (letra === 'B') return "bg-blue-50 text-blue-700 border-blue-100";
     if (letra === 'C') return "bg-amber-50 text-amber-700 border-amber-100";
     return "bg-gray-50 text-gray-600 border-gray-200";
@@ -154,41 +175,54 @@ export const EntregasView = () => {
           <Package className="text-[#719c44]" /> 
           1. Inventario Disponible
         </h3>
-        <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar space-y-2">
-           {inventario.map((item, index) => (
-             <div 
-               key={item.id || index}
-               onClick={() => handleSelectProducto(item)}
-               className={`
-                  p-3 rounded-xl border cursor-pointer transition-all duration-200 relative group
-                  ${selectedItem?.id === item.id 
-                    ? 'border-[#719c44] bg-[#f2f5f0] ring-1 ring-[#719c44]/30 shadow-sm' 
-                    : 'border-transparent hover:bg-[#f9fafb] hover:border-[#c0c6b6]/50'}
-               `}
-             >
-               <div className="flex justify-between items-start">
-                   <div className="flex-1 pr-2">
-                       <p className={`font-bold text-sm line-clamp-1 ${selectedItem?.id === item.id ? 'text-[#353131]' : 'text-[#817e7e]'}`}>
-                           {item.nombre_producto}
-                       </p>
-                       <span className="text-[10px] uppercase tracking-wider text-[#817e7e] font-bold bg-[#f9fafb] px-1.5 py-0.5 rounded border border-[#e5e7eb] mt-1 inline-block">
-                         {item.categoria_producto}
-                       </span>
-                   </div>
-                   <span className={`text-xs font-bold px-2 py-1 rounded-lg ${selectedItem?.id === item.id ? 'bg-[#719c44] text-white' : 'bg-[#e5e7eb] text-[#817e7e]'}`}>
-                       {item.cantidad} {item.unidad_medida}
-                   </span>
-               </div>
-               
-               {/* Indicador de selección */}
-               {selectedItem?.id === item.id && (
-                   <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 bg-[#719c44] text-white p-1 rounded-full shadow-lg animate-in slide-in-from-left-2 z-10">
-                       <ArrowRight size={14} />
-                   </div>
-               )}
-             </div>
-           ))}
-        </div>
+
+        {/* --- LÓGICA DE LOADING APLICADA AQUÍ --- */}
+        {loading ? (
+            <div className="flex flex-col items-center justify-center flex-1 h-full animate-in fade-in">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#719c44] mb-4"></div>
+                <p className="text-[#817e7e] font-medium animate-pulse">Cargando inventario...</p>
+            </div>
+        ) : (
+            <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar space-y-2">
+            {inventario.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-40 text-center">
+                    <p className="text-gray-400 text-sm">No hay productos con stock disponible.</p>
+                </div>
+            )}
+            {inventario.map((item, index) => (
+                <div 
+                key={item.id || index}
+                onClick={() => handleSelectProducto(item)}
+                className={`
+                    p-3 rounded-xl border cursor-pointer transition-all duration-200 relative group
+                    ${selectedItem?.id === item.id 
+                        ? 'border-[#719c44] bg-[#f2f5f0] ring-1 ring-[#719c44]/30 shadow-sm' 
+                        : 'border-transparent hover:bg-[#f9fafb] hover:border-[#c0c6b6]/50'}
+                `}
+                >
+                <div className="flex justify-between items-start">
+                    <div className="flex-1 pr-2">
+                        <p className={`font-bold text-sm line-clamp-1 ${selectedItem?.id === item.id ? 'text-[#353131]' : 'text-[#817e7e]'}`}>
+                            {item.nombre_producto}
+                        </p>
+                        <span className="text-[10px] uppercase tracking-wider text-[#817e7e] font-bold bg-[#f9fafb] px-1.5 py-0.5 rounded border border-[#e5e7eb] mt-1 inline-block">
+                            {item.categoria_producto}
+                        </span>
+                    </div>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-lg ${selectedItem?.id === item.id ? 'bg-[#719c44] text-white' : 'bg-[#e5e7eb] text-[#817e7e]'}`}>
+                        {item.stock_actual ?? item.cantidad} {item.unidad_medida}
+                    </span>
+                </div>
+                
+                {selectedItem?.id === item.id && (
+                    <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 bg-[#719c44] text-white p-1 rounded-full shadow-lg animate-in slide-in-from-left-2 z-10">
+                        <ArrowRight size={14} />
+                    </div>
+                )}
+                </div>
+            ))}
+            </div>
+        )}
       </div>
 
       {/* DERECHA: SUGERENCIAS INTELIGENTES */}
@@ -317,15 +351,21 @@ export const EntregasView = () => {
                     <input 
                         type="number" 
                         min="1"
-                        max={selectedItem?.cantidad}
+                        max={selectedItem?.stock_actual ?? selectedItem?.cantidad}
                         value={cantidadAAsignar}
-                        onChange={(e) => setCantidadAAsignar(Number(e.target.value))}
+                        
+                        // LÓGICA DE INPUT VACÍO
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setCantidadAAsignar(val === "" ? "" : Number(val));
+                        }}
+                        
                         className="flex-1 p-3 border-2 border-[#c0c6b6] rounded-xl font-bold text-2xl text-center text-[#353131] focus:border-[#719c44] outline-none transition-colors bg-[#f9fafb]"
                         autoFocus
                     />
                     <div className="text-right text-xs text-[#817e7e] font-medium min-w-[80px]">
                         Disponible:<br/>
-                        <span className="text-lg font-bold text-[#719c44]">{selectedItem?.cantidad}</span>
+                        <span className="text-lg font-bold text-[#719c44]">{selectedItem?.stock_actual ?? selectedItem?.cantidad}</span>
                     </div>
                 </div>
             </div>
