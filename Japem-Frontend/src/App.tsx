@@ -21,7 +21,7 @@ const Layout = () => {
     <>
       {!shouldHideGlobalLayout && <Header />}
       
-      <div className={`${shouldHideGlobalLayout ? "" : "pt-20"} min-h-screen bg-gray-100`}>
+      <div className={`${shouldHideGlobalLayout ? "" : "pt-10"} min-h-screen bg-gray-100`}>
         <Routes>
           {/* RUTA PÚBLICA */}
           <Route path="/login" element={<Login />} />

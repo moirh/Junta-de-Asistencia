@@ -69,13 +69,13 @@ const NotificationItem = ({ notif, onDismiss }: { notif: Notification; onDismiss
           {notif.content && (
             <button 
                 onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} 
-                className="text-[10px] font-bold text-[#719c44] flex items-center gap-1 mt-1.5 hover:underline focus:outline-none"
+                className="cursor-pointer text-[10px] font-bold text-[#719c44] flex items-center gap-1 mt-1.5 hover:underline focus:outline-none"
             >
                 {isExpanded ? <><EyeOff size={10} /> Ver menos</> : <><Eye size={10} /> Ver más</>}
             </button>
           )}
         </div>
-        <button onClick={() => onDismiss(notif.id)} className="text-[#c0c6b6] hover:text-red-400 transition shrink-0 p-1 hover:bg-white/50 rounded-full">
+        <button onClick={() => onDismiss(notif.id)} className="cursor-pointer text-[#c0c6b6] hover:text-red-400 transition shrink-0 p-1 hover:bg-white/50 rounded-full">
             <X size={14} />
         </button>
       </div>
@@ -215,7 +215,7 @@ export const Header: FC = () => {
                             <div className="relative" ref={notifRef}>
                                 <button 
                                     onClick={() => setIsNotifOpen(!isNotifOpen)} 
-                                    className={`p-2 rounded-full transition relative ${isNotifOpen ? 'bg-[#f2f5f0] text-[#719c44]' : 'bg-transparent hover:bg-[#f2f5f0] text-[#353131]'}`}
+                                    className={`cursor-pointer p-2 rounded-full transition relative ${isNotifOpen ? 'bg-[#f2f5f0] text-[#719c44]' : 'bg-transparent hover:bg-[#f2f5f0] text-[#353131]'}`}
                                 >
                                     <Bell className="w-5 h-5 stroke-2" />
                                     {notifications.length > 0 && <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}
@@ -229,7 +229,7 @@ export const Header: FC = () => {
                                                     {notifications.length}
                                                 </span>
                                             </div>
-                                            <button onClick={() => setNotifications([])} className="text-[10px] text-[#817e7e] hover:text-[#719c44] underline font-medium">Limpiar todo</button>
+                                            <button onClick={() => setNotifications([])} className="cursor-pointer text-[10px] text-[#817e7e] hover:text-[#719c44] underline font-medium">Limpiar todo</button>
                                         </div>
                                         <div className="max-h-[400px] overflow-y-auto p-3 custom-scrollbar bg-white">
                                             {loadingNotifs ? (
@@ -244,18 +244,18 @@ export const Header: FC = () => {
                                 )}
                             </div>
 
-                            <button onClick={() => setIsConfigOpen(true)} className="p-2 rounded-full bg-transparent hover:bg-[#f2f5f0] text-[#353131] hover:text-[#719c44] transition">
+                            <button onClick={() => setIsConfigOpen(true)} className="cursor-pointer p-2 rounded-full bg-transparent hover:bg-[#f2f5f0] text-[#353131] hover:text-[#719c44] transition">
                                 <Settings className="w-5 h-5 stroke-2" />
                             </button>
 
                             <div className="h-6 w-px bg-[#c0c6b6] mx-2"></div>
 
-                            <button onClick={handleLogout} className="p-2 rounded-full bg-transparent hover:bg-red-50 text-[#353131] hover:text-red-500 transition flex items-center gap-2" title="Cerrar Sesión">
+                            <button onClick={handleLogout} className="cursor-pointer p-2 rounded-full bg-transparent hover:bg-red-50 text-[#353131] hover:text-red-500 transition flex items-center gap-2" title="Cerrar Sesión">
                                 <LogOut className="w-5 h-5 stroke-2" />
                             </button>
                         </>
                     ) : (
-                        <Link to="/login" className="flex items-center gap-2 text-sm font-medium text-[#719c44] hover:text-[#5e8239] px-3 py-2 rounded hover:bg-[#f2f5f0] transition">
+                        <Link to="/login" className="cursor-pointer flex items-center gap-2 text-sm font-medium text-[#719c44] hover:text-[#5e8239] px-3 py-2 rounded hover:bg-[#f2f5f0] transition">
                             <User className="w-4 h-4" /> Iniciar Sesión
                         </Link>
                     )}

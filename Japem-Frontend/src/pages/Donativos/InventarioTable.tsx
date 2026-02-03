@@ -22,7 +22,8 @@ export const InventarioTable = () => {
   const [productos, setProductos] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [filtroCategoria, setFiltroCategoria] = useState("Todas");
-  const [searchTerm] = useState("");
+  
+  // Eliminamos 'searchTerm' manual porque usaremos el de la Tabla
 
   useEffect(() => {
     cargarInventario();
@@ -46,13 +47,19 @@ export const InventarioTable = () => {
     }
   };
 
-  const productosFiltrados = productos.filter(p => {
-    const cumpleCategoria = filtroCategoria === "Todas" ? true : p.categoria_producto === filtroCategoria;
-    const cumpleBusqueda = 
-      p.nombre_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.clave_sat && p.clave_sat.includes(searchTerm));
-    return cumpleCategoria && cumpleBusqueda;
-  });
+  // 1. LÓGICA DE FILTRADO (Dropdown + Buscador)
+  const productosProcesados = productos
+    // Primero filtramos por Categoría (Dropdown)
+    .filter(p => 
+        filtroCategoria === "Todas" || Number(filtroCategoria) === 0 
+            ? true 
+            : p.categoria_producto === filtroCategoria
+    )
+    // Luego agregamos el campo oculto para el Buscador de la Tabla
+    .map(p => ({
+        ...p,
+        _busqueda: `${p.nombre_producto} ${p.categoria_producto} ${p.clave_sat || ''}`
+    }));
 
   const getCaducidadStatus = (fecha?: string) => {
     if (!fecha) return { color: "bg-[#f9fafb] text-[#817e7e] border border-[#e5e7eb]", label: "NO APLICA" };
@@ -63,7 +70,6 @@ export const InventarioTable = () => {
     if (diferenciaDias < 0) return { color: "bg-red-100 text-red-700 font-bold border border-red-200", label: "VENCIDO" };
     if (diferenciaDias < 30) return { color: "bg-orange-100 text-orange-700 font-bold border border-orange-200", label: "POR VENCER" };
     
-    // VIGENTE usa el verde institucional suave
     return { color: "bg-[#f2f5f0] text-[#719c44] border border-[#c0c6b6]", label: "VIGENTE" };
   };
 
@@ -79,10 +85,8 @@ export const InventarioTable = () => {
   return (
     <div className="p-6 animate-fade-in relative w-full max-w-full">
       
-      {/* --- HEADER CENTRADO --- */}
+      {/* --- HEADER --- */}
       <div className="relative flex items-center justify-center mb-8">
-        
-        {/* 1. TÍTULO */}
         <div className="text-center">
             <h2 className="text-2xl font-bold text-[#353131] flex items-center justify-center gap-2">
               <Package className="text-[#719c44]" size={28} /> Inventario General
@@ -90,7 +94,6 @@ export const InventarioTable = () => {
             <p className="text-[#817e7e] mt-1">Monitoreo de stock y rotación de productos.</p>
         </div>
 
-        {/* 2. FILTRO */}
         <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
             <div className="flex items-center gap-2 bg-white px-3 py-2.5 border border-[#c0c6b6] rounded-xl shadow-sm hover:shadow-md transition-all">
                 <Filter size={16} className="text-[#719c44]" />
@@ -119,52 +122,51 @@ export const InventarioTable = () => {
         <div className="bg-white rounded-xl shadow-xl shadow-[#c0c6b6]/20 border border-[#c0c6b6]/30 overflow-hidden w-full">
           <div className="overflow-x-auto w-full">
             <Table
-              data={productosFiltrados}
+              data={productosProcesados} // <--- Datos con el buscador habilitado
               columns={columns}
               rowsPerPage={10}
               renderCell={(key, value, row) => {
                 
-                // 1. PRODUCTO
+                // 1. PRODUCTO (Alineado izquierda)
                 if (key === "nombre_producto") return (
-                    <div>
+                    <div className="text-left pl-2">
                         <div className="font-bold text-[#353131] text-sm uppercase">{value}</div>
                         {row.clave_sat && <div className="text-[10px] text-[#817e7e] font-mono">SAT: {row.clave_sat}</div>}
                     </div>
                 );
 
-                // 2. CATEGORÍA
+                // 2. CATEGORÍA (Alineado izquierda - justify-start)
                 if (key === "categoria_producto") return (
-                    <div className="flex justify-center">
+                    <div className="flex justify-start"> {/* CORREGIDO: antes justify-center */}
                         <span className="text-[10px] font-extrabold text-[#719c44] uppercase tracking-widest bg-[#f2f5f0] px-2 py-1 rounded-md border border-[#c0c6b6]">
                             {value}
                         </span>
                     </div>
                 );
 
-                // 3. SEMÁFORO (ROTACIÓN)
+                // 3. SEMÁFORO (Alineado izquierda)
                 if (key === "semaforo_rotacion") {
                     if (value === 'critico') return (
-                        <div className="flex justify-center">
+                        <div className="flex justify-start"> {/* CORREGIDO */}
                           <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-bold text-[10px] border border-red-200 flex items-center gap-1"><Flame size={10} /> URGENTE</span>
                         </div>
                     );
                     if (value === 'atencion') return (
-                        <div className="flex justify-center">
+                        <div className="flex justify-start"> {/* CORREGIDO */}
                           <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-bold text-[10px] border border-yellow-200 flex items-center gap-1"><AlertTriangle size={10} /> LENTO</span>
                         </div>
                     );
-                    // RECIENTE: Verde Institucional
                     return (
-                        <div className="flex justify-center">
+                        <div className="flex justify-start"> {/* CORREGIDO */}
                           <span className="bg-[#f2f5f0] text-[#719c44] px-2 py-0.5 rounded-full font-bold text-[10px] border border-[#c0c6b6] flex items-center gap-1"><Leaf size={10} /> RECIENTE</span>
                         </div>
                     );
                 }
 
-                // 4. STOCK
+                // 4. STOCK (Alineado izquierda para que coincida con el título "Stock")
                 if (key === "cantidad") {
                     return (
-                        <div className="flex justify-center items-center gap-1.5">
+                        <div className="flex justify-start items-center gap-1.5"> {/* CORREGIDO */}
                             <span className="text-lg font-bold text-[#719c44]">{row.cantidad ?? 0}</span>
                             <span className="text-[10px] text-[#817e7e] font-bold bg-[#f9fafb] px-1.5 py-0.5 rounded uppercase border border-[#e5e7eb]">
                                 {row.clave_unidad || "PZA"}
@@ -173,12 +175,12 @@ export const InventarioTable = () => {
                     );
                 }
 
-                // 5. CONDICIÓN
+                // 5. CONDICIÓN (Alineado izquierda)
                 if (key === "estado") {
                     return (
-                      <div className="flex justify-center">
+                      <div className="flex justify-start"> {/* CORREGIDO */}
                           <span className={`px-2 py-1 rounded-lg text-xs font-medium border ${
-                            value === 'Nuevo' ? 'bg-[#f0fdf4] text-[#15803d] border-[#bbf7d0]' : // Verde genérico para nuevo
+                            value === 'Nuevo' ? 'bg-[#f0fdf4] text-[#15803d] border-[#bbf7d0]' : 
                             value === 'Buen Estado' ? 'bg-[#f0f9ff] text-[#0369a1] border-[#bae6fd]' :
                             'bg-[#f9fafb] text-[#817e7e] border-[#e5e7eb]'
                           }`}>
@@ -188,11 +190,11 @@ export const InventarioTable = () => {
                     );
                 }
 
-                // 6. CADUCIDAD
+                // 6. CADUCIDAD (Alineado izquierda - items-start)
                 if (key === "fecha_caducidad") {
                     const status = getCaducidadStatus(row.fecha_caducidad);
                     return (
-                        <div className="flex flex-col items-center gap-1">
+                        <div className="flex flex-col items-start gap-1"> {/* CORREGIDO: items-start */}
                              <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide ${status.color}`}>
                                {status.label}
                              </span>
@@ -206,7 +208,7 @@ export const InventarioTable = () => {
                     );
                 }
 
-                return <div className="text-center">{value}</div>;
+                return <div className="text-left">{value}</div>; // Por defecto a la izquierda
               }}
             />
           </div>

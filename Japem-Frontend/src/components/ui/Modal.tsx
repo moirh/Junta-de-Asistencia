@@ -106,7 +106,7 @@ export const Modal: FC<ModalProps> = ({
 
           <button 
             onClick={onClose} 
-            className={`p-2 rounded-full transition-all duration-300 transform hover:rotate-90 ${activeStyle.closeBtn}`}
+            className={`cursor-pointer p-2 rounded-full transition-all duration-300 transform hover:rotate-90 ${activeStyle.closeBtn}`}
           >
             <X className="w-6 h-6" />
           </button>

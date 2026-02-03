@@ -9,7 +9,7 @@ import {
   deleteDonante 
 } from "../../services/donantesService"; 
 import type { Donante } from "../../types"; 
-import Swal from 'sweetalert2'; // Importamos SweetAlert2
+import Swal from 'sweetalert2';
 
 export default function DonantesTable() {
   const [donantes, setDonantes] = useState<Donante[]>([]);
@@ -65,9 +65,8 @@ export default function DonantesTable() {
     setFormData(initialFormState);
   };
 
-  // ==========================================
-  // LÓGICA DE GUARDAR (MEJORADA CON SWAL)
-  // ==========================================
+  // LÓGICA DE GUARDAR
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -79,7 +78,7 @@ export default function DonantesTable() {
           title: '¡Actualizado!',
           text: 'La información del donante se actualizó correctamente.',
           icon: 'success',
-          confirmButtonColor: '#719c44', // Verde JAPEM
+          confirmButtonColor: '#719c44',
           confirmButtonText: 'Aceptar'
         });
 
@@ -91,7 +90,7 @@ export default function DonantesTable() {
           title: '¡Registrado!',
           text: 'El nuevo donante ha sido agregado al directorio.',
           icon: 'success',
-          confirmButtonColor: '#719c44', // Verde JAPEM
+          confirmButtonColor: '#719c44',
           confirmButtonText: 'Excelente'
         });
       }
@@ -107,33 +106,29 @@ export default function DonantesTable() {
         title: 'Error',
         text: 'Hubo un error al guardar. Verifica los campos obligatorios.',
         icon: 'error',
-        confirmButtonColor: '#353131' // Gris oscuro
+        confirmButtonColor: '#353131'
       });
     }
   };
 
-  // ==========================================
-  // LÓGICA DE ELIMINAR (MEJORADA CON SWAL)
-  // ==========================================
+  // LÓGICA DE ELIMINAR
+
   const handleDelete = async (id: number) => {
-    // Preguntamos con estilo antes de borrar
     const result = await Swal.fire({
       title: '¿Estás seguro?',
       text: "Se eliminará este donante del directorio permanentemente.",
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#d33', // Rojo para peligro
-      cancelButtonColor: '#3085d6', // Azul para cancelar
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar'
     });
 
-    // Si el usuario confirma
     if (result.isConfirmed) {
       try {
         await deleteDonante(id);
         
-        // Confirmación de eliminado
         Swal.fire({
           title: '¡Eliminado!',
           text: 'El registro ha sido eliminado.',
@@ -177,7 +172,7 @@ export default function DonantesTable() {
         <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
           <button
             onClick={() => handleOpenModal()}
-            className="group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
+            className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
           >
             <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" />
             <span className="hidden sm:inline">Nuevo Donante</span>
@@ -210,8 +205,8 @@ export default function DonantesTable() {
               if (key === "id") {
                 return (
                   <div className="flex gap-2 justify-center">
-                    <button onClick={() => handleOpenModal(row)} className="p-1.5 text-[#817e7e] hover:bg-[#f2f5f0] hover:text-[#719c44] rounded-md transition transform hover:scale-110" title="Editar"><Edit size={18} /></button>
-                    <button onClick={() => row.id && handleDelete(row.id)} className="p-1.5 text-[#817e7e] hover:bg-red-50 hover:text-red-500 rounded-md transition transform hover:scale-110" title="Eliminar"><Trash2 size={18} /></button>
+                    <button onClick={() => handleOpenModal(row)} className="cursor-pointer p-1.5 text-[#817e7e] hover:bg-[#f2f5f0] hover:text-[#719c44] rounded-md transition transform hover:scale-110" title="Editar"><Edit size={18} /></button>
+                    <button onClick={() => row.id && handleDelete(row.id)} className="cursor-pointer p-1.5 text-[#817e7e] hover:bg-red-50 hover:text-red-500 rounded-md transition transform hover:scale-110" title="Eliminar"><Trash2 size={18} /></button>
                   </div>
                 );
               }
@@ -221,7 +216,6 @@ export default function DonantesTable() {
         </div>
       )}
 
-      {/* --- MODAL CON ENCABEZADO INSTITUCIONAL --- */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -320,8 +314,8 @@ export default function DonantesTable() {
           </div>
 
           <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#c0c6b6]/30">
-            <button type="button" onClick={handleCloseModal} className="px-6 py-3 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all">Cancelar</button>
-            <button type="submit" className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-all transform active:scale-95">
+            <button type="button" onClick={handleCloseModal} className="cursor-pointer px-6 py-3 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all">Cancelar</button>
+            <button type="submit" className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-all transform active:scale-95">
               {isEditing ? "Actualizar Datos" : "Guardar Donante"}
             </button>
           </div>

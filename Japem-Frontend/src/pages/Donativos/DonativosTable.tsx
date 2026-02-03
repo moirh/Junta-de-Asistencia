@@ -10,7 +10,7 @@ import { getDonativos, createDonativo } from "../../services/donativosService";
 import { getDonantes } from "../../services/donantesService";
 import { getInventario } from "../../services/inventarioService";
 import type { Donativo, Donante } from "../../types";
-import Swal from 'sweetalert2'; // <--- 1. IMPORTAR SWEETALERT
+import Swal from 'sweetalert2';
 
 interface ProductoReferencia {
   nombre: string;
@@ -44,7 +44,6 @@ export const DonativosTable = () => {
     fetchData();
   }, []);
 
-  // --- 1. CARGA DE DATOS Y CONSTRUCCIÓN DE CATÁLOGO ---
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -136,7 +135,6 @@ export const DonativosTable = () => {
     setFormData({ ...formData, detalles: newDetalles });
   };
 
-  // --- 2. MANEJO DE CAMBIOS ---
   const handleProductChange = (index: number, field: string, value: any) => {
     const newDetalles = [...formData.detalles];
     newDetalles[index][field] = value;
@@ -170,13 +168,8 @@ export const DonativosTable = () => {
     return cat.includes("ALIMENT") || cat.includes("MEDICAMENT") || cat.includes("FARMACIA") || cat.includes("PERECEDERO");
   };
 
-  // ==========================================
-  // LÓGICA DE GUARDAR (MEJORADA CON SWAL)
-  // ==========================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validación 1: Donante no seleccionado
     if (formData.donante_id === 0) { 
         Swal.fire({
             title: 'Faltan datos',
@@ -186,8 +179,6 @@ export const DonativosTable = () => {
         });
         return; 
     }
-
-    // Validación 2: Sin productos
     if (formData.detalles.length === 0) { 
         Swal.fire({
             title: 'Sin productos',
@@ -202,7 +193,6 @@ export const DonativosTable = () => {
       const totalGlobal = formData.detalles.reduce((sum, item) => sum + (item.monto_deducible_total || 0), 0);
       await createDonativo({ ...formData, monto_total_deducible: totalGlobal }); 
       
-      // ALERTA DE ÉXITO
       Swal.fire({
         title: '¡Entrada Registrada!',
         text: 'El donativo y los productos se han guardado correctamente.',
@@ -216,8 +206,6 @@ export const DonativosTable = () => {
       fetchData(); 
     } catch (error) {
       console.error("Error:", error);
-      
-      // ALERTA DE ERROR
       Swal.fire({
         title: 'Error',
         text: 'Hubo un problema al guardar la entrada. Inténtalo de nuevo.',
@@ -226,6 +214,14 @@ export const DonativosTable = () => {
       });
     }
   };
+
+  // --- LÓGICA DE BÚSQUEDA INTEGRADA ---
+  // Preparamos los datos con un campo oculto "_busqueda" para que el Table lo use
+  const donativosParaTabla = donativos.map(d => ({
+    ...d,
+    // Este string contiene todo lo que el usuario podría buscar
+    _busqueda: `${d.donante?.razon_social || ''} ${d.detalles?.map(p => p.nombre_producto).join(" ")} ${d.fecha_donativo}`
+  }));
 
   const columns = [
     { key: "fecha_donativo" as keyof Donativo, label: "Fecha" },
@@ -251,7 +247,7 @@ export const DonativosTable = () => {
         <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
+            className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
           >
             <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" />
             <span className="hidden sm:inline">Registrar Entrada</span>
@@ -268,19 +264,34 @@ export const DonativosTable = () => {
       ) : (
         <div className="bg-white rounded-2xl shadow-xl shadow-[#c0c6b6]/20 border border-[#c0c6b6]/30 overflow-hidden">
           <Table
-            data={donativos}
+            data={donativosParaTabla} // Usamos los datos procesados para el buscador
             columns={columns}
             renderCell={(key, value, row) => {
-              if (key === "fecha_donativo") return <div className="flex justify-center items-center gap-2 text-[#353131]"><Calendar size={16} className="text-[#719c44]" /><span className="capitalize">{new Date(value).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}</span></div>;
-              if (key === "donante") return <div className="font-semibold text-[#353131] text-center">{row.donante?.razon_social || "Desconocido"}</div>;
+              
+              // 1. FECHA: Alineada a la izquierda (justify-start)
+              if (key === "fecha_donativo") return (
+                <div className="flex justify-start items-center gap-2 text-[#353131]">
+                    <Calendar size={16} className="text-[#719c44]" />
+                    <span className="capitalize">{new Date(value).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}</span>
+                </div>
+              );
+
+              // 2. DONANTE: Alineado a la izquierda (text-left)
+              if (key === "donante") return (
+                <div className="font-semibold text-[#353131] text-left">
+                    {row.donante?.razon_social || "Desconocido"}
+                </div>
+              );
+
+              // 3. DETALLES: Alineados a la izquierda
               if (key === "detalles") {
                 const detalles = row.detalles || [];
                 const primeros = detalles.slice(0, 2);
                 const resto = detalles.length - 2;
                 return (
-                  <div className="text-sm">
-                    {primeros.map((d, i) => (
-                      <div key={i} className="flex items-center gap-1 text-[#817e7e] mb-0.5">
+                  <div className="text-sm text-left"> {/* text-left aquí */}
+                    {primeros.map((d: any, i: number) => (
+                      <div key={i} className="flex justify-start items-center gap-1 text-[#817e7e] mb-0.5"> {/* justify-start aquí */}
                         <Box size={12} className="text-[#c0c6b6]"/>
                         <span className="font-medium text-[#353131]">{d.nombre_producto}</span>
                         <span className="text-[#817e7e] text-xs">({d.cantidad} {d.clave_unidad || d.clave_unidad})</span>
@@ -290,9 +301,26 @@ export const DonativosTable = () => {
                   </div>
                 );
               }
-              if (key === "monto_total_deducible") return <div className="flex justify-center"><span className="bg-[#f2f5f0] text-[#719c44] px-3 py-1 rounded-full font-bold text-sm border border-[#c0c6b6]">${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span></div>;
-              if (key === "id") return <div className="flex justify-center"><button onClick={() => { setSelectedDonativo(row); setIsViewModalOpen(true); }} className="flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm"><Eye size={18} /> Ver Detalles</button></div>;
-              return <div className="text-center">{value}</div>;
+
+              // 4. MONTO: Alineado a la izquierda para coincidir con el header
+              if (key === "monto_total_deducible") return (
+                <div className="flex justify-start"> {/* justify-start aquí */}
+                    <span className="bg-[#f2f5f0] text-[#719c44] px-3 py-1 rounded-full font-bold text-sm border border-[#c0c6b6]">
+                        ${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </span>
+                </div>
+              );
+
+              // 5. ACCIONES: Centrado (Esto sí se ve bien centrado)
+              if (key === "id") return (
+                <div className="flex justify-center">
+                    <button onClick={() => { setSelectedDonativo(row); setIsViewModalOpen(true); }} className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm">
+                        <Eye size={18} /> Ver Detalles
+                    </button>
+                </div>
+              );
+
+              return <div className="text-left">{value}</div>;
             }}
           />
         </div>
@@ -301,7 +329,6 @@ export const DonativosTable = () => {
       {/* --- MODAL DE REGISTRO --- */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Entrada" size="extraLarge" variant="japem" icon={<HandHeart />}>
         <form onSubmit={handleSave} className="space-y-8 p-1">
-          
           <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
             <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2 mb-4"><User size={18} /> Información del Donante</h3>
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -326,7 +353,7 @@ export const DonativosTable = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-sm font-extrabold text-[#817e7e] uppercase tracking-wide flex items-center gap-2"><Package size={18} /> Inventario a Ingresar</h3>
-              <button type="button" onClick={addProductoRow} className="flex items-center gap-2 bg-[#f2f5f0] hover:bg-[#c0c6b6] text-[#353131] px-5 py-2 rounded-xl transition-all font-bold text-sm hover:scale-105 active:scale-95 border border-[#c0c6b6]"><Plus size={16} /> Agregar Fila</button>
+              <button type="button" onClick={addProductoRow} className="cursor-pointer flex items-center gap-2 bg-[#f2f5f0] hover:bg-[#c0c6b6] text-[#353131] px-5 py-2 rounded-xl transition-all font-bold text-sm hover:scale-105 active:scale-95 border border-[#c0c6b6]"><Plus size={16} /> Agregar Fila</button>
             </div>
 
             {formData.detalles.map((detalle, index) => {
@@ -337,7 +364,7 @@ export const DonativosTable = () => {
 
               return (
                 <div key={index} className="bg-white p-5 rounded-2xl border border-[#c0c6b6] shadow-sm relative group animate-in slide-in-from-bottom-2 mb-4">
-                  <button type="button" onClick={() => removeProductoRow(index)} className="absolute top-4 right-4 text-[#c0c6b6] hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
+                  <button type="button" onClick={() => removeProductoRow(index)} className="cursor-pointer absolute top-4 right-4 text-[#c0c6b6] hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
 
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-start">
                     
@@ -382,7 +409,7 @@ export const DonativosTable = () => {
                         <button 
                             type="button"
                             onClick={() => toggleInputMode(index)}
-                            className={`p-2.5 rounded-lg border transition-all ${detalle.isManual ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300' : 'bg-[#719c44] text-white hover:bg-[#5e8239] border-[#719c44]'}`}
+                            className={`cursor-pointer p-2.5 rounded-lg border transition-all ${detalle.isManual ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300' : 'bg-[#719c44] text-white hover:bg-[#5e8239] border-[#719c44]'}`}
                             title={detalle.isManual ? "Ver lista existente" : "Agregar nuevo producto"}
                         >
                             {detalle.isManual ? <List size={18} /> : <Plus size={18} />}
@@ -480,8 +507,8 @@ export const DonativosTable = () => {
           </div>
 
           <div className="sticky bottom-0 bg-white pt-4 border-t border-[#c0c6b6]/30 flex justify-end gap-3 z-20">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors">Cancelar</button>
-            <button type="submit" className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-transform transform active:scale-95 flex items-center gap-2"><CheckCircle size={20} /> Guardar Entrada</button>
+            <button type="button" onClick={() => setIsModalOpen(false)} className="cursor-pointer px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors">Cancelar</button>
+            <button type="submit" className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-transform transform active:scale-95 flex items-center gap-2"><CheckCircle size={20} /> Guardar Entrada</button>
           </div>
         </form>
       </Modal>
@@ -523,7 +550,7 @@ export const DonativosTable = () => {
                 </table>
             </div>
 
-            <button onClick={() => setIsViewModalOpen(false)} className="w-full py-3 bg-[#f9fafb] hover:bg-[#f2f5f0] text-[#353131] font-bold rounded-xl transition transform active:scale-95 border border-[#c0c6b6]/30">Cerrar Detalle</button>
+            <button onClick={() => setIsViewModalOpen(false)} className="cursor-pointer w-full py-3 bg-[#f9fafb] hover:bg-[#f2f5f0] text-[#353131] font-bold rounded-xl transition transform active:scale-95 border border-[#c0c6b6]/30">Cerrar Detalle</button>
           </div>
          )}
       </Modal>
