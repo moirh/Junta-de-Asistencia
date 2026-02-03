@@ -9,20 +9,18 @@ interface Column<T> {
 interface TableProps<T> {
   data: T[];
   columns: Column<T>[];
-  rowsPerPage?: number;
+  // Quitamos rowsPerPage ya que no paginaremos
   renderCell?: (key: keyof T, value: any, row: T) => React.ReactNode;
 }
 
 export const Table = <T extends Record<string, any>>({
   data,
   columns,
-  rowsPerPage = 5, //
   renderCell,
 }: TableProps<T>) => {
-  const [currentPage, setCurrentPage] = useState(1);
   const [search, setSearch] = useState("");
 
-  // Filtro de búsqueda
+  // Filtro de búsqueda (se mantiene igual)
   const filteredData = useMemo(() => {
     if (!search) return data;
     return data.filter((row) =>
@@ -32,15 +30,9 @@ export const Table = <T extends Record<string, any>>({
     );
   }, [search, data]);
 
-  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
-  const currentData = filteredData.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-
   return (
     <div className="w-full">
-      {/* Buscador*/}
+      {/* Buscador */}
       <div className="mb-4">
         <input
           type="text"
@@ -55,14 +47,11 @@ export const Table = <T extends Record<string, any>>({
             transition
           "
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setCurrentPage(1);
-          }}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      {/* Contenedor*/}
+      {/* Contenedor de la Tabla */}
       <div className="overflow-x-auto rounded-2xl border border-gray-200 shadow-sm bg-white">
         <table className="min-w-full border-separate border-spacing-0">
           <thead>
@@ -83,7 +72,8 @@ export const Table = <T extends Record<string, any>>({
           </thead>
 
           <tbody>
-            {currentData.map((row, i) => (
+            {/* Aquí usamos filteredData directamente para mostrar todos los registros */}
+            {filteredData.map((row, i) => (
               <tr
                 key={i}
                 className="
@@ -117,12 +107,11 @@ export const Table = <T extends Record<string, any>>({
         </table>
       </div>
 
+      {/* Footer simplificado */}
       <div className="flex justify-between items-center mt-6 px-2">
         <span className="text-sm text-gray-600 tracking-wide">
-          Página {currentPage} de {totalPages}
+          Mostrando {filteredData.length} registros
         </span>
-
-        <div className="flex gap-2"></div>
       </div>
     </div>
   );
