@@ -82,10 +82,10 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
            {monthName} <span className="text-[#817e7e] font-normal">{year}</span>
         </h3>
         <div className="flex gap-1">
-            <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] transition-colors">
+            <button onClick={prevMonth} className="cursor-pointer p-1.5 rounded-lg hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] transition-colors">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <button onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] transition-colors">
+            <button onClick={nextMonth} className="cursor-pointer p-1.5 rounded-lg hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] transition-colors">
               <ChevronRight className="w-5 h-5" />
             </button>
         </div>
@@ -153,7 +153,7 @@ export const Calendar: FC<CalendarProps> = ({ events = [] }) => {
                         <h4 className="text-sm font-bold text-[#353131]">
                             {selectedDay} de <span className="capitalize">{monthName}</span>
                         </h4>
-                        <button onClick={() => setShowTooltip(false)} className="text-[#c0c6b6] hover:text-red-500 transition">
+                        <button onClick={() => setShowTooltip(false)} className="cursor-pointer text-[#c0c6b6] hover:text-red-500 transition">
                             <X size={14} />
                         </button>
                     </div>

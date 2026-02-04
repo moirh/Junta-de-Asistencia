@@ -85,8 +85,8 @@ export function Slider() {
         ))}
 
         {/* Botones de Navegación Personalizados (opcional, ocultos por defecto, visibles al hover) */}
-        <div className="swiper-button-prev !text-white/50 hover:!text-white after:!text-2xl transition-all opacity-0 group-hover:opacity-100"></div>
-        <div className="swiper-button-next !text-white/50 hover:!text-white after:!text-2xl transition-all opacity-0 group-hover:opacity-100"></div>
+        <div className="cursor-pointer swiper-button-prev !text-white/50 hover:!text-white after:!text-2xl transition-all opacity-0 group-hover:opacity-100"></div>
+        <div className="cursor-pointer swiper-button-next !text-white/50 hover:!text-white after:!text-2xl transition-all opacity-0 group-hover:opacity-100"></div>
 
       </Swiper>
       

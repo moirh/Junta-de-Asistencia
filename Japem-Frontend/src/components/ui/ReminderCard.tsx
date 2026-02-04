@@ -52,7 +52,7 @@ export const ReminderCard: FC<ReminderCardProps> = ({ reminder, onToggle, onDele
             <button 
                 onClick={onToggle}
                 className={`
-                    p-1.5 rounded-md transition-colors
+                    cursor-pointer p-1.5 rounded-md transition-colors
                     ${reminder.done 
                         ? 'text-[#719c44] bg-[#f2f5f0] hover:bg-[#e2e8de]' // Verde Institucional al completar
                         : 'text-[#c0c6b6] hover:text-[#719c44] hover:bg-[#f2f5f0]'
@@ -67,7 +67,7 @@ export const ReminderCard: FC<ReminderCardProps> = ({ reminder, onToggle, onDele
         {onDelete && (
             <button 
                 onClick={() => onDelete(reminder.id)}
-                className="p-1.5 text-[#c0c6b6] hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                className="cursor-pointer p-1.5 text-[#c0c6b6] hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
                 title="Eliminar recordatorio"
             >
                 <Trash2 size={18} />

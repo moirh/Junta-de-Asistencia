@@ -236,7 +236,7 @@ export default function Home() {
                   </h2>
                   <button
                     onClick={() => openModal("acuerdo")}
-                    className="group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/20 font-bold transition-all transform hover:scale-105 active:scale-95"
+                    className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/20 font-bold transition-all transform hover:scale-105 active:scale-95"
                   >
                     <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" />
                     <span className="hidden sm:inline">Nuevo</span>
@@ -277,7 +277,7 @@ export default function Home() {
                   </h2>
                   <button
                     onClick={() => openModal("recordatorio")}
-                    className="group bg-[#f2f5f0] border border-[#c0c6b6] text-[#817e7e] hover:bg-[#817e7e] hover:text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm hover:shadow-md font-bold transition-all transform hover:scale-105 active:scale-95"
+                    className="cursor-pointer group bg-[#f2f5f0] border border-[#c0c6b6] text-[#817e7e] hover:bg-[#817e7e] hover:text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-sm hover:shadow-md font-bold transition-all transform hover:scale-105 active:scale-95"
                   >
                     <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" />
                     <span className="hidden sm:inline">Nuevo</span>
@@ -397,13 +397,13 @@ export default function Home() {
             <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="px-6 py-2.5 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all"
+                className="cursor-pointer px-6 py-2.5 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all"
             >
                 Cancelar
             </button>
             <button
               type="submit"
-              className={`px-8 py-2.5 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center gap-2 ${
+              className={`cursor-pointer px-8 py-2.5 text-white font-bold rounded-xl shadow-lg transition-all transform active:scale-95 flex items-center gap-2 ${
                   modalType === "acuerdo" 
                   ? "bg-[#719c44] hover:bg-[#5e8239] shadow-[#719c44]/30" 
                   : "bg-[#817e7e] hover:bg-[#6b6868] shadow-[#817e7e]/30"

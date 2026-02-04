@@ -35,7 +35,7 @@ export const AgreementCard: FC<AgreementCardProps> = ({ agreement, onDelete, onT
             {onDelete && (
                 <button 
                 onClick={() => onDelete(agreement.id)}
-                className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"
+                className="cursor-pointer text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"
                 title="Eliminar acuerdo"
                 >
                 <Trash2 size={18} />
