@@ -13,9 +13,11 @@ class Asignacion extends Model
 
     protected $fillable = [
         'iap_id',
-        'estatus', // 'pendiente', 'procesado', 'cancelado'
-        'fecha_asignacion',
-        'user_id'
+        'estatus',
+        'fecha_asignacion',     
+        'responsable_entrega',  
+        'lugar_entrega',        
+        'fecha_entrega_real',   
     ];
 
     /**

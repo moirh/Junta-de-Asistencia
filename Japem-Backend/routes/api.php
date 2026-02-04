@@ -16,59 +16,39 @@ use App\Http\Controllers\DashboardController;
 // --- Rutas Públicas ---
 Route::post('/login', [AuthController::class, 'login']);
 
-// --- Rutas Protegidas (Requieren Token) ---
+// --- Rutas Protegidas ---
 Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // ==========================================
-    // 0. DASHBOARD (INICIO)
-    // ==========================================
+    // ... (Dashboard, Donantes, Donativos, Inventario, Iaps igual que antes) ...
     Route::get('/dashboard', [DashboardController::class, 'index']);
-
-    // ==========================================
-    // 1. MÓDULO DE DONANTES
-    // ==========================================
     Route::apiResource('donantes', DonanteController::class);
-
-    // ==========================================
-    // 2. MÓDULO DE DONATIVOS
-    // ==========================================
     Route::apiResource('donativos', DonativoController::class);
-
-    // ==========================================
-    // INVENTARIO (Aquí agregué la ruta faltante)
-    // ==========================================
     Route::get('/inventario', [InventarioController::class, 'index']);
     Route::get('/inventario/{id}/detalles', [InventarioController::class, 'detalles']);
-
-    // <--- ESTA ES LA NUEVA RUTA PARA GUARDAR PRECIOS --->
     Route::put('/inventario/precios', [InventarioController::class, 'updatePrices']);
-
-    // ==========================================
-    // 3. MÓDULO DE IAPs
-    // ==========================================
     Route::get('iaps/sugerencias', [IapController::class, 'sugerirIaps']);
     Route::apiResource('iaps', IapController::class);
 
     // ==========================================
-    // 4. MÓDULO DE ENTREGAS
+    // 4. MÓDULO DE ENTREGAS (CORREGIDO)
     // ==========================================
     Route::get('/entregas/sugerencias/{inventarioId}', [EntregaController::class, 'sugerirAsignacion']);
-    Route::post('/entregas/confirmar', [EntregaController::class, 'procesarEntrega']);
+
+    // CAMBIO IMPORTANTE: Renombramos la ruta a 'procesar' para coincidir con el frontend
+    Route::post('/entregas/procesar', [EntregaController::class, 'procesarEntrega']);
+
+    // Esta es la ruta que usará tu tabla principal ahora
     Route::get('/entregas/historial', [EntregaController::class, 'historial']);
+
     Route::get('/entregas/pendientes', [EntregaController::class, 'pendientes']);
     Route::apiResource('entregas', EntregaController::class);
 
-    // ==========================================
-    // 5. DISTRIBUCIÓN
-    // ==========================================
+    // ... (Resto de rutas igual: Distribucion, Configuración, etc.) ...
     Route::post('/distribucion', [DistribucionController::class, 'store']);
     Route::get('/distribucion/historial', [EntregaController::class, 'pendientes']);
 
-    // ==========================================
-    // 6. CONFIGURACIÓN
-    // ==========================================
     Route::get('/users', [SettingsController::class, 'getUsers']);
     Route::post('/users', [SettingsController::class, 'createUser']);
     Route::put('/users/{id}', [SettingsController::class, 'updateUser']);
@@ -78,9 +58,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/profile/update', [SettingsController::class, 'updateProfile']);
     Route::put('/profile/password', [SettingsController::class, 'changePassword']);
 
-    // ==========================================
-    // OTROS MÓDULOS
-    // ==========================================
     Route::apiResource('acuerdos', AcuerdoController::class);
     Route::apiResource('recordatorios', RecordatorioController::class);
 });

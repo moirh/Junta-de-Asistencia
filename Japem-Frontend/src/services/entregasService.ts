@@ -2,7 +2,13 @@ import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
-// Helper para obtener cabeceras con el token actual
+// 1. DEFINIMOS LA ESTRUCTURA DE LOS DATOS (EL MOLDE)
+interface ConfirmarEntregaData {
+    asignacion_id: number;
+    responsable_entrega: string;
+    lugar_entrega: string;
+}
+
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return {
@@ -13,14 +19,14 @@ const getAuthHeaders = () => {
     };
 };
 
-// Obtener lista de entregas (Pendientes e Historial)
+// Obtener lista de entregas (Ahora apunta al historial completo)
 export const getHistorialEntregas = async () => {
-    const response = await axios.get(`${API_URL}/entregas/pendientes`, getAuthHeaders());
+    const response = await axios.get(`${API_URL}/entregas/historial`, getAuthHeaders());
     return response.data;
 };
 
-// Nueva función para confirmar la entrega (POST)
-export const confirmarEntrega = async (data: { asignacion_id: number; responsable_entrega: string; lugar_entrega: string }) => {
-    const response = await axios.post(`${API_URL}/entregas/confirmar`, data, getAuthHeaders());
+// 2. USAMOS LA INTERFAZ AQUÍ PARA CORREGIR EL ERROR
+export const confirmarEntrega = async (data: ConfirmarEntregaData) => {
+    const response = await axios.post(`${API_URL}/entregas/procesar`, data, getAuthHeaders());
     return response.data;
 };

@@ -392,7 +392,7 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
                     onClick={handleConfirmAsignacion}
                     className="cursor-pointer w-full bg-[#719c44] hover:bg-[#5e8239] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#719c44]/30 flex justify-center items-center gap-2 transform active:scale-95 transition-all"
                 >
-                    <CheckCircle size={20} /> Confirmar y Generar Vale
+                    <CheckCircle size={20} /> Confirmar
                 </button>
             </div>
         </Modal>

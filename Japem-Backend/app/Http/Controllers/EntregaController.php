@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Entrega;
+use App\Models\Asignacion;
 use App\Models\Iap;
 use App\Models\Inventario;
 use Illuminate\Http\Request;
@@ -11,12 +11,15 @@ use Illuminate\Support\Facades\DB;
 class EntregaController extends Controller
 {
     /**
-     * Procesa la entrega física, descuenta del STOCK ACTUAL y actualiza estatus.
+     * Procesa la entrega física:
+     * 1. Descuenta del STOCK ACTUAL.
+     * 2. Actualiza estatus de la asignación a 'entregado'.
+     * 3. Guarda responsable y lugar en la misma tabla asignaciones.
      */
     public function procesarEntrega(Request $request)
     {
         $request->validate([
-            'asignacion_id' => 'required',
+            'asignacion_id' => 'required|exists:asignaciones,id',
             'responsable_entrega' => 'required|string',
             'lugar_entrega' => 'required|string',
         ]);
@@ -24,152 +27,143 @@ class EntregaController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Obtener el detalle de la asignación (lo que se planeó entregar)
-            $detalle = DB::table('detalle_asignaciones')
-                ->where('id', $request->asignacion_id)
-                ->first();
+            // 1. OBTENER LA ASIGNACIÓN
+            $asignacion = Asignacion::findOrFail($request->asignacion_id);
 
-            if (!$detalle) {
-                return response()->json(['message' => 'Error: No se encontró el detalle.'], 404);
+            // Verificamos si ya fue entregada para no descontar doble
+            // Revisamos tanto 'procesado' como 'entregado' por compatibilidad
+            if (in_array($asignacion->estatus, ['procesado', 'entregado'])) {
+                return response()->json(['message' => 'Esta asignación ya fue entregada anteriormente.'], 400);
             }
 
-            // 2. BUSCAR EN INVENTARIO
-            $itemInventario = Inventario::find($detalle->inventario_id);
+            // 2. OBTENER DETALLES
+            $detalles = DB::table('detalle_asignaciones')
+                ->where('asignacion_id', $asignacion->id)
+                ->get();
 
-            if (!$itemInventario) {
-                return response()->json(['message' => 'Error: El producto no existe en el inventario.'], 404);
+            if ($detalles->isEmpty()) {
+                throw new \Exception("La asignación no tiene detalles de productos.");
             }
 
-            // --- CAMBIO CLAVE: VALIDACIÓN CONTRA STOCK ACTUAL ---
-            // Verificamos si queda stock real disponible
-            if ($itemInventario->cantidad_actual < $detalle->cantidad) {
-                return response()->json([
-                    'message' => "Stock insuficiente. Físicamente quedan: {$itemInventario->cantidad_actual}, intentas entregar: {$detalle->cantidad}"
-                ], 400);
+            // 3. DESCONTAR STOCK
+            foreach ($detalles as $detalle) {
+                $producto = Inventario::find($detalle->inventario_id);
+
+                if (!$producto) {
+                    throw new \Exception("Producto ID {$detalle->inventario_id} no encontrado.");
+                }
+
+                // Validación de Stock Real
+                if ($producto->cantidad_actual < $detalle->cantidad) {
+                    throw new \Exception("Stock insuficiente para {$producto->nombre_producto}. Quedan: {$producto->cantidad_actual}");
+                }
+
+                // Decremento del stock físico
+                $producto->decrement('cantidad_actual', $detalle->cantidad);
+
+                // Actualizamos el detalle también
+                DB::table('detalle_asignaciones')
+                    ->where('id', $detalle->id)
+                    ->update(['estatus' => 'entregado', 'updated_at' => now()]);
             }
 
-            // --- CAMBIO CLAVE: DECREMENTO DEL STOCK ACTUAL ---
-            // Restamos solo de la columna 'cantidad_actual'.
-            // La columna 'cantidad' original NO SE TOCA (queda como histórico).
-            $itemInventario->decrement('cantidad_actual', $detalle->cantidad);
-            // --------------------------------------------------
-
-            // 3. Preparar datos de la IAP
-            $asignacionPadre = DB::table('asignaciones')
-                ->where('id', $detalle->asignacion_id)
-                ->first();
-
-            if (!$asignacionPadre) {
-                throw new \Exception("Error de Integridad: Detalle sin padre.");
-            }
-
-            $iapId = $asignacionPadre->iap_id;
-
-            // 4. Crear registro de Entrega (Cabecera)
-            $nuevaEntrega = Entrega::create([
-                'iap_id' => $iapId,
-                'fecha_entrega' => now(),
+            // 4. ACTUALIZAR LA ASIGNACIÓN (CONFIRMAR ENTREGA)
+            $asignacion->update([
+                'estatus' => 'entregado', // Usamos 'entregado' para que coincida con la lógica visual
                 'responsable_entrega' => $request->responsable_entrega,
                 'lugar_entrega' => $request->lugar_entrega,
-                'observaciones_generales' => 'Entrega confirmada. Ref Detalle #' . $detalle->id
-            ]);
-
-            // 5. Registrar detalle histórico de la salida
-            DB::table('detalle_entregas')->insert([
-                'entrega_id' => $nuevaEntrega->id,
-                'inventario_id' => $detalle->inventario_id,
-                'nombre_producto' => $itemInventario->nombre_producto,
-                'cantidad_entregada' => $detalle->cantidad,
-                'created_at' => now(),
+                'fecha_entrega_real' => now(),
                 'updated_at' => now()
             ]);
 
-            // 6. Actualizar la asignación a "procesado"
-            DB::table('detalle_asignaciones')
-                ->where('id', $request->asignacion_id)
-                ->update([
-                    'estatus' => 'procesado',
-                    'fecha_entrega' => now(),
-                    'updated_at' => now()
-                ]);
-
-            // 7. Incrementar contador de la IAP
-            if ($iapId) {
-                DB::table('iaps')
-                    ->where('id', $iapId)
-                    ->increment('veces_donado');
-            }
+            // 5. INCREMENTAR CONTADOR DE LA IAP
+            DB::table('iaps')->where('id', $asignacion->iap_id)->increment('veces_donado');
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Entrega registrada exitosamente. Stock actualizado.',
-                'folio' => $nuevaEntrega->id
+                'message' => 'Entrega confirmada exitosamente. Inventario actualizado.',
+                'folio' => $asignacion->id
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            // Si el error es por el Constraint Check de la BD, avisa claramente
+            if (str_contains($e->getMessage(), 'asignaciones_estatus_check')) {
+                return response()->json(['message' => 'Error de Base de Datos: El estatus "entregado" no está permitido. Ejecuta el SQL de corrección en PgAdmin.'], 500);
+            }
             return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
     }
 
-    public function pendientes()
-    {
-        $asignaciones = DB::table('detalle_asignaciones')
-            ->join('asignaciones', 'detalle_asignaciones.asignacion_id', '=', 'asignaciones.id')
-            ->join('iaps', 'asignaciones.iap_id', '=', 'iaps.id')
-            ->join('inventarios', 'detalle_asignaciones.inventario_id', '=', 'inventarios.id')
-            ->select(
-                'detalle_asignaciones.id',
-                'iaps.nombre_iap',
-                'inventarios.nombre_producto as producto_nombre',
-                'detalle_asignaciones.cantidad',
-                'detalle_asignaciones.created_at as fecha',
-                'detalle_asignaciones.estatus',
-                'detalle_asignaciones.fecha_entrega'
-            )
-            ->where('detalle_asignaciones.estatus', 'pendiente') // Solo mostramos pendientes
-            ->orderByDesc('detalle_asignaciones.created_at')
-            ->get();
-
-        return response()->json($asignaciones);
-    }
-
+    /**
+     * HISTORIAL (PRINCIPAL)
+     * Trae TODO (Pendientes + Entregados) para que la tabla se actualice en tiempo real
+     * sin desaparecer los registros al cambiar de estatus.
+     */
     public function historial()
     {
-        $historial = Entrega::join('iaps', 'entregas.iap_id', '=', 'iaps.id')
-            ->join('detalle_entregas', 'entregas.id', '=', 'detalle_entregas.entrega_id')
-            ->join('inventarios', 'detalle_entregas.inventario_id', '=', 'inventarios.id')
+        $historial = Asignacion::join('iaps', 'asignaciones.iap_id', '=', 'iaps.id')
+            ->join('detalle_asignaciones', 'asignaciones.id', '=', 'detalle_asignaciones.asignacion_id')
+            ->join('inventarios', 'detalle_asignaciones.inventario_id', '=', 'inventarios.id')
             ->select(
-                'entregas.id as entrega_id',
-                'entregas.fecha_entrega',
-                'entregas.responsable_entrega',
-                'entregas.lugar_entrega',
+                'asignaciones.id',
+                'asignaciones.estatus',
+                // Fecha de asignación (cuando se apartó)
+                DB::raw('COALESCE(asignaciones.fecha_asignacion, asignaciones.created_at) as fecha'),
+
+                // Datos de Entrega Real
+                'asignaciones.fecha_entrega_real',
+                'asignaciones.responsable_entrega',
+                'asignaciones.lugar_entrega',
+
                 'iaps.nombre_iap',
-                'inventarios.nombre_producto',
-                'detalle_entregas.cantidad_entregada as cantidad'
+                'inventarios.nombre_producto as producto_nombre',
+                'detalle_asignaciones.cantidad'
             )
-            ->orderByDesc('entregas.created_at')
+            // IMPORTANTE: NO HAY WHERE. Traemos todo para que el frontend decida cómo pintar el botón.
+            ->orderByDesc('asignaciones.id')
             ->get();
 
         return response()->json($historial);
     }
 
     /**
-     * 🧠 ALGORITMO DE ASIGNACIÓN V2 (SOPORTE LISTAS Y FILTRO ESTRICTO)
+     * PENDIENTES
+     * (Opcional, por si lo usas en algún dashboard específico)
+     */
+    public function pendientes()
+    {
+        $pendientes = Asignacion::join('iaps', 'asignaciones.iap_id', '=', 'iaps.id')
+            ->join('detalle_asignaciones', 'asignaciones.id', '=', 'detalle_asignaciones.asignacion_id')
+            ->join('inventarios', 'detalle_asignaciones.inventario_id', '=', 'inventarios.id')
+            ->select(
+                'asignaciones.id',
+                'iaps.nombre_iap',
+                'inventarios.nombre_producto as producto_nombre',
+                'detalle_asignaciones.cantidad',
+                DB::raw('COALESCE(asignaciones.fecha_asignacion, asignaciones.created_at) as fecha'),
+                'asignaciones.estatus',
+                'asignaciones.responsable_entrega',
+                'asignaciones.lugar_entrega'
+            )
+            ->where('asignaciones.estatus', 'pendiente')
+            ->orderBy('asignaciones.id', 'desc')
+            ->get();
+
+        return response()->json($pendientes);
+    }
+
+    /**
+     * ALGORITMO DE SUGERENCIAS
      */
     public function sugerirAsignacion($inventarioId)
     {
         $producto = Inventario::find($inventarioId);
-
         if (!$producto) return response()->json([]);
-
-        // Opcional: Podrías agregar aquí que si cantidad_actual es 0, no sugiera nada.
-        // if ($producto->cantidad_actual <= 0) return response()->json([]);
 
         $prodNombre = strtoupper(trim($producto->nombre_producto));
         $prodCat    = strtoupper(trim($producto->categoria_producto));
 
-        // 1. FILTROS LEGALES
         $candidatos = Iap::where('estatus', 'Activa')
             ->where('es_certificada', true)
             ->where('tiene_donataria_autorizada', true)
@@ -180,51 +174,41 @@ class EntregaController extends Controller
             $puntaje = 0;
             $razones = [];
 
-            // Datos normalizados
             $necPrim = strtoupper($iap->necesidad_primaria ?? '');
             $necComp = strtoupper($iap->necesidad_complementaria ?? '');
             $rubro   = strtoupper($iap->rubro ?? '');
             $actividad = strtoupper($iap->actividad_asistencial ?? '');
             $clase = strtoupper($iap->clasificacion);
 
-            // Helper de coincidencia
             $verificarMatchEnLista = function ($listaString, $busqueda) {
                 if (empty($listaString)) return false;
                 $items = explode(',', $listaString);
                 foreach ($items as $item) {
                     $itemLimpio = trim($item);
                     if (empty($itemLimpio)) continue;
-                    if (str_contains($busqueda, $itemLimpio) || str_contains($itemLimpio, $busqueda)) {
-                        return true;
-                    }
+                    if (str_contains($busqueda, $itemLimpio) || str_contains($itemLimpio, $busqueda)) return true;
                 }
                 return false;
             };
 
-            // Detección de Match
             $tipoMatch = 'NINGUNO';
 
-            if ($verificarMatchEnLista($necPrim, $prodNombre)) {
-                $tipoMatch = 'PRIMARIA';
-            } elseif ($verificarMatchEnLista($necComp, $prodNombre)) {
-                $tipoMatch = 'COMPLEMENTARIA';
-            } else {
-                if ($verificarMatchEnLista($necPrim, $prodCat) || $verificarMatchEnLista($necComp, $prodCat)) {
-                    $tipoMatch = 'CATEGORIA';
-                } else {
+            if ($verificarMatchEnLista($necPrim, $prodNombre)) $tipoMatch = 'PRIMARIA';
+            elseif ($verificarMatchEnLista($necComp, $prodNombre)) $tipoMatch = 'COMPLEMENTARIA';
+            else {
+                if ($verificarMatchEnLista($necPrim, $prodCat) || $verificarMatchEnLista($necComp, $prodCat)) $tipoMatch = 'CATEGORIA';
+                else {
                     $esAfin = false;
                     if ($prodCat === 'ALIMENTOS' && (str_contains($rubro, 'ALIMENT') || str_contains($rubro, 'NUTRICI') || str_contains($actividad, 'COMEDOR'))) $esAfin = true;
                     if ($prodCat === 'MEDICAMENTOS' && (str_contains($rubro, 'SALUD') || str_contains($rubro, 'MÉDIC') || str_contains($rubro, 'HOSPITAL') || str_contains($rubro, 'REHABILITA'))) $esAfin = true;
                     if ($prodCat === 'ROPA' && (str_contains($rubro, 'VESTIDO') || str_contains($rubro, 'VIVIENDA') || str_contains($rubro, 'ASILO'))) $esAfin = true;
                     if ($prodCat === 'ALIMENTOS' && in_array($clase, ['A1', 'A2', 'A3', 'A4'])) $esAfin = true;
-
                     if ($esAfin) $tipoMatch = 'CATEGORIA';
                 }
             }
 
             if ($tipoMatch === 'NINGUNO') return null;
 
-            // Calculo de Puntaje
             if (in_array($clase, ['A1', 'A2', 'A3', 'A4'])) {
                 $puntaje += 400000;
                 $razones[] = "Nivel 1: Beneficiarios Fijos (A)";
@@ -267,8 +251,7 @@ class EntregaController extends Controller
                 'puntaje' => $puntaje,
                 'razones' => $razones
             ];
-        })
-            ->filter();
+        })->filter();
 
         return response()->json($sugerencias->sortByDesc('puntaje')->values());
     }

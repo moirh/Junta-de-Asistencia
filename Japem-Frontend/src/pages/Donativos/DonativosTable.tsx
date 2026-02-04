@@ -526,7 +526,7 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
 
                         {/* --- PRECIO VENTA (REGISTRO) --- */}
                         <div className="md:col-span-2 space-y-1">
-                        <label className="text-xs font-bold text-[#719c44] uppercase">P. Venta (Recup.)</label>
+                        <label className="text-xs font-bold text-[#719c44] uppercase">P. Venta</label>
                         <input 
                             type="number" 
                             step="0.01" 

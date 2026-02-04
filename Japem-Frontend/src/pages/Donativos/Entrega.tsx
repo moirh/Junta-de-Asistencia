@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { FileText, Package, Truck, CheckCircle, Clock, MapPin, UserCheck, Calendar, Box, AlertCircle } from "lucide-react";
+// 1. AGREGAMOS EL ÍCONO 'Eye' PARA EL BOTÓN DE DETALLES
+import { FileText, Package, Truck, CheckCircle, Clock, MapPin, UserCheck, Calendar, Box, AlertCircle, Eye } from "lucide-react";
 import { Modal } from "../../components/ui/Modal";
 import { Table } from "../../components/ui/Table";
 import { getHistorialEntregas, confirmarEntrega } from "../../services/entregasService";
@@ -13,22 +14,26 @@ interface EntregaItem {
   fecha: string;
   estatus?: string;
   fecha_entrega_real?: string;
+  responsable_entrega?: string; 
+  lugar_entrega?: string;
 }
 
-// 1. DEFINIR INTERFAZ DE PROPS
 interface EntregaProps {
-  userRole: string; // Recibimos el rol desde el padre
+  userRole: string; 
 }
 
-// 2. RECIBIR LA PROP
 export const Entrega = ({ userRole }: EntregaProps) => {
-  
-  // 3. DEFINIR PERMISO DE SOLO LECTURA
   const isReadOnly = userRole === 'lector';
 
   const [entregas, setEntregas] = useState<EntregaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // MODAL DE CONFIRMACIÓN (Entregar)
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // 2. NUEVO ESTADO: MODAL DE DETALLES (Ver)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false); 
+
   const [selectedEntrega, setSelectedEntrega] = useState<EntregaItem | null>(null);
 
   const [form, setForm] = useState({
@@ -43,46 +48,43 @@ export const Entrega = ({ userRole }: EntregaProps) => {
   const cargarDatos = async () => {
     try {
       setLoading(true);
-      const data = await getHistorialEntregas();
-      setEntregas(Array.isArray(data) ? data : []);
+      const response = await getHistorialEntregas();
+      if (Array.isArray(response)) {
+          setEntregas(response);
+      } else if (response && response.data && Array.isArray(response.data)) {
+          setEntregas(response.data);
+      } else {
+          setEntregas([]);
+      }
     } catch (error) {
       console.error("Error al cargar entregas:", error);
+      setEntregas([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Abrir modal para ENTREGAR (Acción)
   const handleInitiateEntrega = (item: EntregaItem) => {
-    // PROTECCIÓN EXTRA: Si es lector, no abre modal
     if (isReadOnly) return;
-
     setSelectedEntrega(item);
     setForm({ responsable_entrega: '', lugar_entrega: 'Oficinas JAPEM' });
     setIsModalOpen(true);
   };
 
-  // ==========================================
-  // LÓGICA CONFIRMAR ENTREGA
-  // ==========================================
+  // 3. NUEVA FUNCIÓN: Abrir modal para VER DETALLES (Lectura)
+  const handleViewDetails = (item: EntregaItem) => {
+    setSelectedEntrega(item);
+    setIsDetailsOpen(true);
+  };
+
   const handleConfirmar = async (e: React.FormEvent) => {
     e.preventDefault(); 
-    
-    // PROTECCIÓN DE ACCIÓN
-    if (isReadOnly) {
-        Swal.fire('Acceso Denegado', 'No tienes permiso para confirmar entregas.', 'error');
-        return;
-    }
-
+    if (isReadOnly) return Swal.fire('Acceso Denegado', 'No tienes permiso.', 'error');
     if (!selectedEntrega) return;
     
     if (!form.responsable_entrega.trim()) {
-      Swal.fire({
-        title: 'Faltan datos',
-        text: 'Por favor escribe el nombre de la persona responsable de la entrega.',
-        icon: 'warning',
-        confirmButtonColor: '#719c44'
-      });
-      return;
+      return Swal.fire('Faltan datos', 'Escribe el nombre del responsable.', 'warning');
     }
 
     try {
@@ -91,38 +93,17 @@ export const Entrega = ({ userRole }: EntregaProps) => {
         responsable_entrega: form.responsable_entrega,
         lugar_entrega: form.lugar_entrega
       });
-      
-      Swal.fire({
-        title: '¡Entrega Registrada!',
-        text: 'La salida de almacén se ha confirmado correctamente.',
-        icon: 'success',
-        confirmButtonColor: '#719c44',
-        confirmButtonText: 'Excelente'
-      });
-
+      Swal.fire('¡Entrega Registrada!', 'Salida confirmada correctamente.', 'success');
       setIsModalOpen(false);
       cargarDatos(); 
-
     } catch (error) {
       console.error(error);
-      Swal.fire({
-        title: 'Error',
-        text: 'Hubo un problema al registrar la entrega. Inténtalo de nuevo.',
-        icon: 'error',
-        confirmButtonColor: '#353131'
-      });
+      Swal.fire('Error', 'Hubo un problema al registrar la entrega.', 'error');
     }
   };
 
   const handleVerVale = (id: number) => {
-    Swal.fire({
-        title: 'Generando Vale...',
-        text: `Procesando documento PDF para el folio #${id}`,
-        icon: 'info',
-        timer: 2000,
-        showConfirmButton: false,
-        timerProgressBar: true
-    });
+    Swal.fire({ title: 'Generando Vale...', text: `Folio #${id}`, icon: 'info', timer: 1500, showConfirmButton: false });
   };
 
   const columns = [
@@ -135,13 +116,10 @@ export const Entrega = ({ userRole }: EntregaProps) => {
 
   return (
     <div className="p-6 animate-fade-in relative w-full max-w-full">
-      
-      {/* HEADER */}
       <div className="relative flex items-center justify-center mb-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-[#353131] flex items-center justify-center gap-2">
-            <Truck className="text-[#719c44]" size={28} />
-            Mesa de Control de Entregas
+            <Truck className="text-[#719c44]" size={28} /> Mesa de Control de Entregas
           </h1>
           <p className="text-[#817e7e] mt-1">Gestiona las salidas de almacén pendientes y el historial.</p>
         </div>
@@ -158,7 +136,7 @@ export const Entrega = ({ userRole }: EntregaProps) => {
             data={entregas}
             columns={columns}
             renderCell={(key, value, row) => {
-              const isEntregado = (row.fecha_entrega_real && row.fecha_entrega_real !== null) || row.estatus === 'procesado';
+              const isEntregado = (row.estatus === 'procesado' || row.estatus === 'entregado');
 
               if (key === "fecha") {
                 return (
@@ -178,9 +156,7 @@ export const Entrega = ({ userRole }: EntregaProps) => {
                 );
               }
 
-              if (key === "nombre_iap") {
-                return <span className="font-bold text-[#353131]">{value}</span>;
-              }
+              if (key === "nombre_iap") return <span className="font-bold text-[#353131]">{value}</span>;
 
               if (key === "producto_nombre") {
                 return (
@@ -205,38 +181,45 @@ export const Entrega = ({ userRole }: EntregaProps) => {
               }
 
               if (key === "id") {
-                // CONDICIONAL: Botón "Entregar" solo si NO es lector
-                // El botón "Vale" (historial) sí lo puede ver un lector
+                // 4. AQUÍ PONEMOS LOS BOTONES CON ESTILO UNIFORME
                 return isEntregado ? (
-                  <button 
-                    onClick={() => handleVerVale(row.id)}
-                    className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-colors font-medium text-sm"
-                  >
-                    <FileText size={16} /> Vale
-                  </button>
+                  <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => handleVerVale(row.id)}
+                        className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm"
+                        title="Descargar Vale"
+                      >
+                        <FileText size={18} /> Vale
+                      </button>
+
+                      <button 
+                        onClick={() => handleViewDetails(row)}
+                        className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm"
+                        title="Ver Detalles"
+                      >
+                        <Eye size={18} /> Ver Detalles
+                      </button>
+                  </div>
                 ) : (
                   !isReadOnly ? (
+                    // CORRECCIÓN APLICADA AQUÍ: Botón "Entregar" con estilo minimalista
                     <button 
                         onClick={() => handleInitiateEntrega(row)}
-                        className="cursor-pointer bg-[#719c44] hover:bg-[#5e8239] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
+                        className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm"
+                        title="Iniciar Entrega"
                     >
-                        <Package size={16} /> Entregar
+                        <Package size={18} /> Entregar
                     </button>
-                  ) : (
-                    <span className="text-xs text-gray-400 italic flex items-center gap-1">
-                        <UserCheck size={12}/> Solo Lectura
-                    </span>
-                  )
+                  ) : <span className="text-xs text-gray-400 italic flex items-center gap-1"><UserCheck size={12}/> Solo Lectura</span>
                 );
               }
-
               return value;
             }}
           />
         </div>
       )}
 
-      {/* --- MODAL DE CONFIRMACIÓN (Solo renderiza si no es lector) --- */}
+      {/* --- MODAL DE CONFIRMACIÓN (FORMULARIO) --- */}
       {!isReadOnly && (
         <Modal 
             isOpen={isModalOpen} 
@@ -247,81 +230,114 @@ export const Entrega = ({ userRole }: EntregaProps) => {
         >
             {selectedEntrega && (
             <form onSubmit={handleConfirmar} className="space-y-6 p-1">
-                
-                {/* Tarjeta de Resumen */}
+                {/* ... (Contenido del formulario de entrega igual que antes) ... */}
                 <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
-                <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2 mb-4">
-                    <AlertCircle size={18} /> Detalles de la Asignación
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <p className="text-xs text-[#817e7e] uppercase font-bold">Beneficiario</p>
-                        <p className="text-base font-bold text-[#353131]">{selectedEntrega.nombre_iap}</p>
-                    </div>
-                    <div>
-                        <p className="text-xs text-[#817e7e] uppercase font-bold">Producto a Entregar</p>
-                        <div className="flex items-center gap-2">
-                            <span className="text-base font-bold text-[#353131]">{selectedEntrega.producto_nombre}</span>
-                            <span className="bg-white text-[#719c44] px-2 py-0.5 rounded border border-[#c0c6b6] text-xs font-bold">Cant: {selectedEntrega.cantidad}</span>
+                    <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2 mb-4"><AlertCircle size={18} /> Detalles de la Asignación</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <p className="text-xs text-[#817e7e] uppercase font-bold">Beneficiario</p>
+                            <p className="text-base font-bold text-[#353131]">{selectedEntrega.nombre_iap}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-[#817e7e] uppercase font-bold">Producto</p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-base font-bold text-[#353131]">{selectedEntrega.producto_nombre}</span>
+                                <span className="bg-white text-[#719c44] px-2 py-0.5 rounded border border-[#c0c6b6] text-xs font-bold">Cant: {selectedEntrega.cantidad}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                </div>
-
-                {/* Inputs del Formulario */}
                 <div className="grid grid-cols-1 gap-6">
                     <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-[#353131] flex items-center gap-2">
-                            <UserCheck size={16} className="text-[#817e7e]"/> Responsable de Entrega (JAPEM) *
-                        </label>
-                        <input 
-                            type="text" 
-                            required
-                            className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]"
-                            placeholder="Nombre de quien entrega..."
-                            value={form.responsable_entrega}
-                            onChange={(e) => setForm({...form, responsable_entrega: e.target.value})}
-                        />
+                        <label className="text-sm font-bold text-[#353131] flex items-center gap-2"><UserCheck size={16} className="text-[#817e7e]"/> Responsable JAPEM</label>
+                        <select required className="w-full p-3 border border-[#c0c6b6] rounded-xl outline-none text-[#353131] bg-white" value={form.responsable_entrega} onChange={(e) => setForm({...form, responsable_entrega: e.target.value})}>
+                            <option value="">-- Seleccionar --</option>
+                            <option value="Yuri">Yuri</option>
+                            <option value="Alex">Alex</option>
+                            <option value="Juanita">Juanita</option>
+                            <option value="Marco">Marco</option>
+                            <option value="Dafne">Dafne</option>
+                        </select>
                     </div>
-
                     <div className="space-y-1.5">
-                        <label className="text-sm font-bold text-[#353131] flex items-center gap-2">
-                            <MapPin size={16} className="text-[#817e7e]"/> Lugar de Entrega *
-                        </label>
-                        <select 
-                            className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none bg-white text-[#353131]"
-                            value={form.lugar_entrega}
-                            onChange={(e) => setForm({...form, lugar_entrega: e.target.value})}
-                        >
+                        <label className="text-sm font-bold text-[#353131] flex items-center gap-2"><MapPin size={16} className="text-[#817e7e]"/> Lugar</label>
+                        <select className="w-full p-3 border border-[#c0c6b6] rounded-xl outline-none bg-white text-[#353131]" value={form.lugar_entrega} onChange={(e) => setForm({...form, lugar_entrega: e.target.value})}>
                             <option value="Oficinas JAPEM">Oficinas JAPEM</option>
                             <option value="Instalaciones de la IAP">Instalaciones de la IAP</option>
                             <option value="Evento / Otro">Evento / Otro</option>
                         </select>
                     </div>
                 </div>
-
-                {/* Botones de Acción */}
                 <div className="pt-4 border-t border-[#c0c6b6]/30 flex justify-end gap-3">
-                    <button 
-                        type="button" 
-                        onClick={() => setIsModalOpen(false)} 
-                        className="cursor-pointer px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors"
-                    >
-                        Cancelar
-                    </button>
-                    <button 
-                        type="submit" 
-                        className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
-                    >
-                        <CheckCircle size={20} /> Confirmar Entrega
-                    </button>
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors">Cancelar</button>
+                    <button type="submit" className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg flex items-center gap-2"><CheckCircle size={20} /> Confirmar</button>
                 </div>
-
             </form>
             )}
         </Modal>
       )}
+
+      {/* 5. NUEVO MODAL: VER DETALLES (SOLO LECTURA) */}
+      <Modal 
+          isOpen={isDetailsOpen} 
+          onClose={() => setIsDetailsOpen(false)} 
+          title="Detalles de Entrega"
+          size="normal"
+          variant="japem" 
+      >
+          {selectedEntrega && (
+            <div className="space-y-6 p-2">
+                <div className="flex items-center justify-center py-4">
+                    <div className="bg-[#f2f5f0] p-4 rounded-full border-4 border-white shadow-lg">
+                        <CheckCircle size={48} className="text-[#719c44]" />
+                    </div>
+                </div>
+                
+                <div className="text-center mb-6">
+                    <h3 className="text-xl font-bold text-[#353131]">Entrega Exitosa</h3>
+                    <p className="text-[#817e7e] text-sm">Folio de Referencia: #{selectedEntrega.id}</p>
+                </div>
+
+                <div className="bg-white border border-[#c0c6b6]/50 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="p-4 border-b border-[#f2f5f0] bg-[#f9fafb] flex justify-between items-center">
+                        <span className="text-xs font-bold text-[#817e7e] uppercase tracking-wider">Fecha Real</span>
+                        <span className="text-sm font-bold text-[#353131]">
+                            {selectedEntrega.fecha_entrega_real 
+                                ? new Date(selectedEntrega.fecha_entrega_real).toLocaleString() 
+                                : 'No registrada'}
+                        </span>
+                    </div>
+                    <div className="p-5 space-y-4">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 bg-[#f2f5f0] rounded-lg text-[#719c44]"><UserCheck size={20}/></div>
+                            <div>
+                                <p className="text-xs text-[#817e7e] font-bold uppercase">Entregado Por</p>
+                                <p className="text-base font-medium text-[#353131]">{selectedEntrega.responsable_entrega || 'Sin dato'}</p>
+                            </div>
+                        </div>
+                        <div className="w-full h-px bg-[#f2f5f0]"></div>
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 bg-[#f2f5f0] rounded-lg text-[#719c44]"><MapPin size={20}/></div>
+                            <div>
+                                <p className="text-xs text-[#817e7e] font-bold uppercase">Lugar de Entrega</p>
+                                <p className="text-base font-medium text-[#353131]">{selectedEntrega.lugar_entrega || 'Sin dato'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-center pt-2">
+                    <button 
+                        onClick={() => setIsDetailsOpen(false)} 
+                        className="w-full py-3 bg-[#353131] text-white rounded-xl font-bold hover:bg-black transition-all"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+          )}
+      </Modal>
+
     </div>
   );
 };
