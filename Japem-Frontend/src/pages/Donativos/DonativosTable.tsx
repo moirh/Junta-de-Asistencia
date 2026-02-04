@@ -631,12 +631,12 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
             </div>
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
-                <button onClick={() => setIsViewModalOpen(false)} className="flex-1 py-3 bg-[#f9fafb] hover:bg-gray-100 text-[#817e7e] font-bold rounded-xl transition border border-[#c0c6b6]/30">
+                <button onClick={() => setIsViewModalOpen(false)} className="cursor-pointer flex-1 py-3 bg-[#f9fafb] hover:bg-gray-100 text-[#817e7e] font-bold rounded-xl transition border border-[#c0c6b6]/30">
                     {isReadOnly ? 'Cerrar' : 'Cancelar'}
                 </button>
                 {/* BOTÓN GUARDAR: SOLO SI NO ES LECTOR */}
                 {!isReadOnly && (
-                    <button onClick={handleUpdatePrices} className="flex-1 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-md shadow-[#719c44]/20 transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <button onClick={handleUpdatePrices} className="cursor-pointer flex-1 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-md shadow-[#719c44]/20 transition transform active:scale-95 flex items-center justify-center gap-2">
                         <Save size={18} /> Guardar Precios
                     </button>
                 )}

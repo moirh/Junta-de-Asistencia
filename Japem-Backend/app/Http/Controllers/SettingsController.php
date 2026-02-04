@@ -24,7 +24,7 @@ class SettingsController extends Controller
             'email' => 'nullable|email|unique:users,email',
             'password' => 'required|string|min:6',
             // Asegúrate que estos roles coincidan con lo que envías desde el Frontend (admin, editor, viewer/lector)
-            'role' => 'required|in:admin,editor,lector,viewer'
+            'role' => 'required|in:superadmin,admin,editor,lector'
         ]);
 
         $user = User::create([
@@ -52,7 +52,7 @@ class SettingsController extends Controller
             // Importante: Validamos que el username sea único, PERO ignorando al usuario actual
             // (si no, dará error de que "el usuario ya existe" al guardar sin cambiar el nombre)
             'username' => ['required', 'string', 'max:50', Rule::unique('users')->ignore($user->id)],
-            'role' => 'required|in:admin,editor,lector,viewer', // Ajusta los roles según tu frontend
+            'role' => 'required|in:superadmin,admin,editor,lector', // Ajusta los roles según tu frontend
             'password' => 'nullable|string|min:6' // La contraseña es opcional aquí
         ]);
 

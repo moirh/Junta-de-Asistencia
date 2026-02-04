@@ -227,7 +227,7 @@ export const IapTable = ({ userRole }: IapTableProps) => {
             <div className="absolute right-0 top-1/2 transform -translate-y-1/2 flex items-center gap-3">
                 <button 
                     onClick={openNewModal}
-                    className="group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
+                    className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
                 >
                     <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" /> 
                     <span className="hidden sm:inline">Nueva IAP</span>
@@ -305,8 +305,8 @@ export const IapTable = ({ userRole }: IapTableProps) => {
 
                   return (
                       <div className="flex gap-2 justify-start">
-                          <button onClick={() => handleEdit(row)} className="p-1.5 hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] rounded transition hover:scale-110"><Edit size={16}/></button>
-                          <button onClick={() => row.id && handleDelete(row.id)} className="p-1.5 hover:bg-red-50 text-[#817e7e] hover:text-red-500 rounded transition hover:scale-110"><Trash2 size={16}/></button>
+                          <button onClick={() => handleEdit(row)} className="cursor-pointer p-1.5 hover:bg-[#f2f5f0] text-[#817e7e] hover:text-[#719c44] rounded transition hover:scale-110"><Edit size={16}/></button>
+                          <button onClick={() => row.id && handleDelete(row.id)} className="cursor-pointer p-1.5 hover:bg-red-50 text-[#817e7e] hover:text-red-500 rounded transition hover:scale-110"><Trash2 size={16}/></button>
                       </div>
                   );
               }
@@ -475,8 +475,8 @@ export const IapTable = ({ userRole }: IapTableProps) => {
                 </div>
 
                 <div className="flex justify-end gap-3 border-t pt-6 border-[#c0c6b6]/30">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all">Cancelar</button>
-                    <button type="submit" className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-all transform active:scale-95 flex items-center gap-2">
+                    <button type="button" onClick={() => setIsModalOpen(false)} className="cursor-pointer px-6 py-3 text-[#817e7e] font-bold hover:bg-[#f2f5f0] rounded-xl transition-all">Cancelar</button>
+                    <button type="submit" className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-all transform active:scale-95 flex items-center gap-2">
                         <CheckCircle size={20}/>
                         {isEditing ? "Guardar Cambios" : "Registrar IAP"}
                     </button>

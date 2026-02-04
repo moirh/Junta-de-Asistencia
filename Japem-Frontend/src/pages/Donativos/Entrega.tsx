@@ -210,7 +210,7 @@ export const Entrega = ({ userRole }: EntregaProps) => {
                 return isEntregado ? (
                   <button 
                     onClick={() => handleVerVale(row.id)}
-                    className="flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-colors font-medium text-sm"
+                    className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-colors font-medium text-sm"
                   >
                     <FileText size={16} /> Vale
                   </button>
@@ -218,7 +218,7 @@ export const Entrega = ({ userRole }: EntregaProps) => {
                   !isReadOnly ? (
                     <button 
                         onClick={() => handleInitiateEntrega(row)}
-                        className="bg-[#719c44] hover:bg-[#5e8239] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
+                        className="cursor-pointer bg-[#719c44] hover:bg-[#5e8239] text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
                     >
                         <Package size={16} /> Entregar
                     </button>
@@ -306,13 +306,13 @@ export const Entrega = ({ userRole }: EntregaProps) => {
                     <button 
                         type="button" 
                         onClick={() => setIsModalOpen(false)} 
-                        className="px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors"
+                        className="cursor-pointer px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors"
                     >
                         Cancelar
                     </button>
                     <button 
                         type="submit" 
-                        className="px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
+                        className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg transition-transform transform active:scale-95 flex items-center gap-2 shadow-[#719c44]/30"
                     >
                         <CheckCircle size={20} /> Confirmar Entrega
                     </button>

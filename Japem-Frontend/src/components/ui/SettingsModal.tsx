@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { 
-  User, Shield, Save, Plus, Trash2, Lock, Mail, Loader2, XCircle, AtSign, Settings, Edit2 // <--- 1. Agregado Edit2
+  User, Shield, Save, Plus, Trash2, Loader2, XCircle, AtSign, Settings, Edit2 
 } from "lucide-react";
 import { Modal } from "../ui/Modal";
 import { 
-  getUsers, createUser, deleteUser, updateProfile, changePassword, getProfile, updateUser // <--- 2. Agregado updateUser
+  getUsers, createUser, deleteUser, updateProfile, changePassword, getProfile, updateUser 
 } from "../../services/settingsService"; 
+import Swal from 'sweetalert2'; // <--- Importamos SweetAlert
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -25,10 +26,19 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   // --- ESTADO USUARIOS ---
   const [users, setUsers] = useState<any[]>([]);
   const [showUserForm, setShowUserForm] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null); // <--- 3. Nuevo estado para saber si editamos
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [newUser, setNewUser] = useState({ 
       name: '', username: '', email: '', password: '', role: '' 
   });
+
+  // --- DEFINICIÓN DE PERMISOS (RBAC) ---
+  const role = profileData.role; 
+  const isSuperAdmin = role === 'superadmin';
+  const isAdmin = role === 'admin';
+  
+  const canViewUsers = isSuperAdmin || isAdmin;
+  const canCreateUser = isSuperAdmin;
+  const canDeleteUser = isSuperAdmin;
 
   // --- CARGA INICIAL ---
   useEffect(() => {
@@ -40,10 +50,13 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
   useEffect(() => {
     if (activeTab === 'usuarios' && isOpen) {
-        if (profileData.role === 'admin') {
-            loadUsersList();
-        } else {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const currentRole = profileData.role || storedUser.role;
+
+        if (currentRole !== 'admin' && currentRole !== 'superadmin') {
             setActiveTab('perfil');
+        } else {
+            loadUsersList();
         }
     }
   }, [activeTab, isOpen, profileData.role]);
@@ -53,7 +66,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
     setDataLoading(true);
     try {
         const data = await getProfile();
-        const roleNormalized = (data.role || 'editor').toLowerCase();
+        const roleNormalized = (data.role || 'lector').toLowerCase(); 
         
         setProfileData(prev => ({ 
             ...prev, 
@@ -84,49 +97,85 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
           await changePassword({ current_password: profileData.currentPass, new_password: profileData.newPass });
           setProfileData(prev => ({ ...prev, currentPass: '', newPass: '' }));
       }
-      alert("Perfil actualizado correctamente");
+      
+      Swal.fire({
+        title: '¡Perfil Actualizado!',
+        text: 'Tus datos se han guardado correctamente.',
+        icon: 'success',
+        confirmButtonColor: '#719c44',
+        confirmButtonText: 'Aceptar'
+      });
+
     } catch (e: any) { 
-      alert("Error: " + (e.response?.data?.message || "Verifique sus datos"));
+      Swal.fire({
+        title: 'Error',
+        text: e.response?.data?.message || "Verifique sus datos e intente nuevamente.",
+        icon: 'error',
+        confirmButtonColor: '#353131'
+      });
     } finally { setLoading(false); }
   };
 
-  // --- 4. LÓGICA UNIFICADA (CREAR / EDITAR) ---
-  const handleSaveUser = async () => { // Renombrado de handleCreateUser a handleSaveUser
-    // Validación: Si editamos, el password es opcional. Si creamos, es obligatorio.
-    if(!newUser.username || !newUser.role || (!editingId && !newUser.password)) return alert("Faltan campos");
+  // --- LÓGICA UNIFICADA (CREAR / EDITAR) ---
+  const handleSaveUser = async () => { 
+    if(!newUser.username || !newUser.role || (!editingId && !newUser.password)) {
+        Swal.fire('Campos incompletos', 'Por favor llena todos los campos obligatorios.', 'warning');
+        return;
+    }
+    
+    if (!editingId && !canCreateUser) {
+        Swal.fire('Acceso Denegado', 'Solo el Superadmin puede crear usuarios.', 'error');
+        return;
+    }
     
     setLoading(true);
     try {
       if (editingId) {
-          // MODO EDICIÓN
+          // EDITAR
           const updated = await updateUser(editingId, newUser);
-          // Actualizamos la lista local mapeando
-          setUsers(users.map(u => u.id === editingId ? updated.user : u)); // Asumiendo que backend devuelve { user: ... }
-          alert("Usuario actualizado");
+          setUsers(users.map(u => u.id === editingId ? updated.user : u)); 
+          
+          Swal.fire({
+            title: '¡Usuario Actualizado!',
+            text: 'Los cambios se guardaron exitosamente.',
+            icon: 'success',
+            confirmButtonColor: '#719c44'
+          });
+
       } else {
-          // MODO CREACIÓN
+          // CREAR
           const created = await createUser(newUser);
           setUsers([...users, created]);
+
+          Swal.fire({
+            title: '¡Usuario Creado!',
+            text: 'El nuevo usuario ha sido registrado.',
+            icon: 'success',
+            confirmButtonColor: '#719c44'
+          });
       }
       
-      // Limpieza
       setShowUserForm(false);
       setEditingId(null);
       setNewUser({ name: '', username: '', email: '', password: '', role: '' });
-      loadUsersList(); // Recarga por seguridad
+      loadUsersList(); 
     } catch (e: any) { 
-        alert("Error: " + (e.response?.data?.message || "Ocurrió un error"));
+        Swal.fire({
+            title: 'Error',
+            text: e.response?.data?.message || "Ocurrió un error al procesar la solicitud.",
+            icon: 'error',
+            confirmButtonColor: '#353131'
+        });
     } finally { setLoading(false); }
   };
 
-  // --- 5. FUNCIONES AUXILIARES DE EDICIÓN ---
   const startEditing = (user: any) => {
       setNewUser({
           name: user.name,
           username: user.username,
           email: user.email || '',
           role: user.role,
-          password: '' // Contraseña vacía al editar (opcional)
+          password: '' 
       });
       setEditingId(user.id);
       setShowUserForm(true);
@@ -139,12 +188,45 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (id === profileData.id) return alert("No puedes eliminarte a ti mismo.");
-    if(!confirm("¿Eliminar?")) return;
-    try {
-      await deleteUser(id);
-      setUsers(users.filter(u => u.id !== id));
-    } catch (e) { console.error(e); }
+    if (!canDeleteUser) {
+        Swal.fire('Acceso Denegado', 'Solo el Superadmin puede eliminar usuarios.', 'error');
+        return;
+    }
+
+    if (id === profileData.id) {
+        Swal.fire('Acción no permitida', 'No puedes eliminarte a ti mismo.', 'warning');
+        return;
+    }
+
+    // Confirmación con SweetAlert
+    const result = await Swal.fire({
+        title: '¿Estás seguro?',
+        text: "El usuario será eliminado permanentemente y perderá el acceso.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            await deleteUser(id);
+            setUsers(users.filter(u => u.id !== id));
+            
+            Swal.fire({
+                title: '¡Eliminado!',
+                text: 'El usuario ha sido eliminado correctamente.',
+                icon: 'success',
+                confirmButtonColor: '#719c44'
+            });
+
+        } catch (e) { 
+            console.error(e);
+            Swal.fire('Error', 'No se pudo eliminar el usuario.', 'error');
+        }
+    }
   };
 
   return (
@@ -157,7 +239,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                     <User size={18} /> Mi Perfil
                 </button>
 
-                {profileData.role === 'admin' && (
+                {canViewUsers && (
                     <button onClick={() => setActiveTab('usuarios')} className={`text-left px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-3 transition-all ${activeTab === 'usuarios' ? 'bg-[#719c44] text-white' : 'text-[#817e7e] hover:bg-[#e5e7eb]'}`}>
                         <Shield size={18} /> Usuarios
                     </button>
@@ -165,7 +247,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
 
                 <div className="mt-auto pt-4 border-t border-[#e5e7eb]">
                     <div className="flex items-center gap-2 mb-2 px-2">
-                          <div className={`w-2 h-2 rounded-full ${profileData.role === 'admin' ? 'bg-purple-500' : 'bg-blue-500'}`}></div>
+                          <div className={`w-2 h-2 rounded-full ${isSuperAdmin ? 'bg-purple-600' : 'bg-blue-500'}`}></div>
                           <span className="text-[10px] font-bold text-[#817e7e] uppercase">{profileData.role}</span>
                     </div>
                     <p className="text-[10px] text-center text-[#c0c6b6] uppercase font-bold tracking-widest">JAPEM v1.2.0</p>
@@ -188,7 +270,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                 <div className="flex items-center gap-1.5 text-sm text-[#817e7e]">
                                     <AtSign size={14} className="text-[#719c44]"/> <span className="font-bold text-[#353131]">{profileData.username}</span>
                                 </div>
-                                <span className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full font-bold border ${profileData.role==='admin'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>
+                                <span className={`inline-block mt-2 text-[10px] px-2 py-0.5 rounded-full font-bold border ${isSuperAdmin?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}`}>
                                     Rol: {profileData.role.toUpperCase()}
                                 </span>
                             </div>
@@ -212,7 +294,7 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                             </div>
                         </div>
                         <div className="flex justify-end pt-4 border-t border-[#c0c6b6]/30">
-                            <button onClick={handleSaveProfile} disabled={loading} className="bg-[#719c44] hover:bg-[#5e8239] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2">
+                            <button onClick={handleSaveProfile} disabled={loading} className="cursor-pointer bg-[#719c44] hover:bg-[#5e8239] text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition transform active:scale-95">
                                 {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} Guardar
                             </button>
                         </div>
@@ -220,19 +302,20 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                 )}
 
                 {/* 2. CONTENIDO USUARIOS */}
-                {activeTab === 'usuarios' && profileData.role === 'admin' && (
+                {activeTab === 'usuarios' && canViewUsers && (
                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 h-full flex flex-col">
                         <div className="flex justify-between items-center">
                             <h3 className="font-bold text-[#353131]">Gestión de Usuarios</h3>
-                            {/* Botón Nuevo / Cancelar */}
-                            <button onClick={() => showUserForm ? cancelForm() : setShowUserForm(true)} className="text-xs bg-[#719c44] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
-                                {showUserForm ? <XCircle size={14}/> : <Plus size={14}/>} {showUserForm ? "Cancelar" : "Nuevo"}
-                            </button>
+                            
+                            {canCreateUser && (
+                                <button onClick={() => showUserForm ? cancelForm() : setShowUserForm(true)} className="cursor-pointer text-xs bg-[#719c44] hover:bg-[#5e8239] text-white px-3 py-1.5 rounded-lg font-bold flex items-center gap-1 transition shadow-md">
+                                    {showUserForm ? <XCircle size={14}/> : <Plus size={14}/>} {showUserForm ? "Cancelar" : "Nuevo"}
+                                </button>
+                            )}
                         </div>
                         
-                        {/* FORMULARIO UNIFICADO (CREAR / EDITAR) */}
                         {showUserForm && (
-                            <div className="bg-[#f2f5f0] p-4 rounded-xl border border-[#c0c6b6] mb-2">
+                            <div className="bg-[#f2f5f0] p-4 rounded-xl border border-[#c0c6b6] mb-2 shadow-sm animate-in slide-in-from-top-2">
                                 <h4 className="text-xs font-bold text-[#719c44] mb-3 uppercase tracking-wider">{editingId ? "Editar Usuario" : "Nuevo Usuario"}</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                                     <input type="text" placeholder="Nombre" className="p-2 border rounded-lg text-sm" value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
@@ -240,43 +323,48 @@ export const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                                     <input type="text" placeholder="Email" className="p-2 border rounded-lg text-sm" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
                                     <input type="password" placeholder={editingId ? "Pass (Opcional)" : "Pass (Requerido)"} className="p-2 border rounded-lg text-sm" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
                                     <div className="md:col-span-2">
-                                        <select className="w-full p-2 border rounded-lg text-sm" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                                        <select className="w-full p-2 border rounded-lg text-sm bg-white" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
                                             <option value="">Seleccionar Rol</option>
+                                            <option value="superadmin">Superadmin</option>
                                             <option value="admin">Admin</option>
                                             <option value="editor">Editor</option>
                                             <option value="lector">Lector</option>
                                         </select>
                                     </div>
                                 </div>
-                                <button onClick={handleSaveUser} disabled={loading} className="w-full bg-[#353131] text-white py-2 rounded-lg text-xs font-bold">
+                                <button onClick={handleSaveUser} disabled={loading} className="cursor-pointer w-full bg-[#353131] hover:bg-black text-white py-2 rounded-lg text-xs font-bold transition">
                                     {loading ? "Procesando..." : (editingId ? "Guardar Cambios" : "Registrar")}
                                 </button>
                             </div>
                         )}
 
-                        <div className="flex-1 overflow-y-auto border border-[#c0c6b6]/30 rounded-xl">
+                        <div className="flex-1 overflow-y-auto border border-[#c0c6b6]/30 rounded-xl custom-scrollbar">
                             <table className="w-full text-left text-sm">
                                 <thead className="bg-[#f2f5f0] text-[#817e7e] font-bold text-xs uppercase sticky top-0">
                                     <tr><th className="p-3">Usuario</th><th className="p-3">Rol</th><th className="p-3 text-center">Acción</th></tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#f2f5f0]">
                                     {users.map((u) => (
-                                        <tr key={u.id} className="hover:bg-[#f9fafb]">
+                                        <tr key={u.id} className="hover:bg-[#f9fafb] transition-colors">
                                             <td className="p-3">
-                                                <div className="font-bold">{u.name}</div>
+                                                <div className="font-bold text-[#353131]">{u.name}</div>
                                                 <div className="text-xs text-[#719c44] font-medium">@{u.username}</div>
                                             </td>
-                                            <td className="p-3"><span className="bg-gray-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase">{u.role}</span></td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase
+                                                    ${u.role === 'superadmin' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-gray-100 border border-gray-200 text-gray-600'}`}>
+                                                    {u.role}
+                                                </span>
+                                            </td>
                                             <td className="p-3 text-center">
                                                 <div className="flex justify-center gap-2">
-                                                    {/* Botón Editar */}
-                                                    <button onClick={() => startEditing(u)} className="text-gray-400 hover:text-blue-500" title="Editar">
+                                                    <button onClick={() => startEditing(u)} className="cursor-pointer text-gray-400 hover:text-blue-500 hover:bg-blue-50 p-1.5 rounded transition" title="Editar">
                                                         <Edit2 size={16}/>
                                                     </button>
-                                                    {/* Botón Eliminar */}
-                                                    {u.id !== profileData.id && (
-                                                        <button onClick={() => handleDeleteUser(u.id)} className="text-gray-400 hover:text-red-500" title="Eliminar">
-                                                            <Trash2 size={16}/>
+                                                    
+                                                    {canDeleteUser && u.id !== profileData.id && (
+                                                        <button onClick={() => handleDeleteUser(u.id)} className="cursor-pointer text-gray-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition" title="Eliminar">
+                                                                <Trash2 size={16}/>
                                                         </button>
                                                     )}
                                                 </div>

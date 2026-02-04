@@ -336,7 +336,7 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
                                         <td className="p-4 text-center">
                                             <button 
                                                 onClick={() => handleInitiateAsignacion(iap)}
-                                                className="bg-[#719c44] hover:bg-[#5e8239] text-white text-xs px-4 py-2 rounded-lg font-bold transition-all transform active:scale-95 shadow-md hover:shadow-lg opacity-0 group-hover:opacity-100 flex items-center gap-1 mx-auto"
+                                                className="cursor-pointer bg-[#719c44] hover:bg-[#5e8239] text-white text-xs px-4 py-2 rounded-lg font-bold transition-all transform active:scale-95 shadow-md hover:shadow-lg opacity-0 group-hover:opacity-100 flex items-center gap-1 mx-auto"
                                             >
                                                 Asignar <ArrowRight size={12}/>
                                             </button>
@@ -390,7 +390,7 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
 
                 <button 
                     onClick={handleConfirmAsignacion}
-                    className="w-full bg-[#719c44] hover:bg-[#5e8239] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#719c44]/30 flex justify-center items-center gap-2 transform active:scale-95 transition-all"
+                    className="cursor-pointer w-full bg-[#719c44] hover:bg-[#5e8239] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-[#719c44]/30 flex justify-center items-center gap-2 transform active:scale-95 transition-all"
                 >
                     <CheckCircle size={20} /> Confirmar y Generar Vale
                 </button>

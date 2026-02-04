@@ -50,5 +50,15 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        User::firstOrCreate(
+            ['email' => 'superadmin@japem.gob.mx'], 
+            [
+                'name' => 'Super Admin',
+                'username' => 'superadmin.japem', 
+                'password' => Hash::make('123456'),
+                'role' => 'superadmin', 
+            ]
+        );
+
     }
 }
