@@ -3,7 +3,7 @@ import { Package, Filter, AlertTriangle, Flame, Leaf, Calendar } from "lucide-re
 import { Table } from "../../components/ui/Table";
 import axios from "axios"; 
 
-const API_URL = "http://127.0.0.1:8000/api";
+const API_URL = "http://192.168.1.90:8000/api";
 
 interface InventarioItem {
   id: number;

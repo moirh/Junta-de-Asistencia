@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, ArrowRight, CheckCircle, PackageOpen, Star, ShieldCheck, AlertCircle, Info } from "lucide-react";
+import { Package, ArrowRight, CheckCircle, PackageOpen, Star, ShieldCheck, AlertCircle, Info, Box } from "lucide-react"; // Agregué 'Box'
 import axios from "axios"; 
 import { Modal } from "../../components/ui/Modal";
 import Swal from 'sweetalert2'; 
@@ -7,17 +7,15 @@ import Swal from 'sweetalert2';
 import { getInventario } from "../../services/inventarioService";
 import { guardarAsignacion } from "../../services/distribucionService";
 
-const API_URL = "http://127.0.0.1:8000/api";
+// URL Dinámica (Mejora recomendada)
+const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.90:8000/api";
 
-// 1. DEFINIMOS LA INTERFAZ DE PROPS
 interface EntregasViewProps {
   userRole: string;
 }
 
-// 2. RECIBIMOS LA PROP userRole
 export const EntregasView = ({ userRole }: EntregasViewProps) => {
   
-  // 3. DEFINIMOS SI ES SOLO LECTURA
   const isReadOnly = userRole === 'lector';
 
   // --- ESTADOS ---
@@ -44,7 +42,6 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
       if (Array.isArray(data)) {
           setInventario(data.filter((i: any) => (i.stock_actual ?? i.cantidad ?? 0) > 0));
       } else {
-          console.error("El formato del inventario no es válido:", data);
           setInventario([]);
       }
     } catch (error) {
@@ -54,6 +51,19 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
       setLoading(false); 
     }
   };
+
+  // --- NUEVA LÓGICA: AGRUPAR POR CATEGORÍA ---
+  const groupedInventory = inventario.reduce((groups, item) => {
+    const category = item.categoria_producto || 'OTROS'; // Categoría por defecto
+    if (!groups[category]) {
+      groups[category] = [];
+    }
+    groups[category].push(item);
+    return groups;
+  }, {} as Record<string, any[]>);
+
+  // Ordenar categorías alfabéticamente (Opcional)
+  const sortedCategories = Object.keys(groupedInventory).sort();
 
   const handleSelectProducto = async (item: any) => {
     setSelectedItem(item);
@@ -87,18 +97,12 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
   };
 
   const handleInitiateAsignacion = (iap: any) => {
-    // Protección extra (aunque el botón se oculte)
     if (isReadOnly) return;
-    
     setIapSeleccionada(iap);
     setIsModalOpen(true);
   };
 
-  // ==========================================
-  // LÓGICA DE ASIGNACIÓN
-  // ==========================================
   const handleConfirmAsignacion = async () => {
-    // 4. PROTECCIÓN DE SEGURIDAD EN LA ACCIÓN
     if (isReadOnly) {
         Swal.fire('Acceso Denegado', 'No tienes permisos para asignar entregas.', 'error');
         return;
@@ -109,24 +113,14 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
     const cantidadFinal = Number(cantidadAAsignar);
 
     if (cantidadFinal <= 0) {
-        Swal.fire({
-            title: 'Cantidad Inválida',
-            text: 'Por favor ingresa una cantidad mayor a 0.',
-            icon: 'warning',
-            confirmButtonColor: '#719c44'
-        });
+        Swal.fire({ title: 'Cantidad Inválida', text: 'Ingresa una cantidad mayor a 0.', icon: 'warning', confirmButtonColor: '#719c44' });
         return;
     }
 
     const stockDisponible = selectedItem.stock_actual ?? selectedItem.cantidad ?? 0;
     
     if (cantidadFinal > stockDisponible) {
-        Swal.fire({
-            title: 'Stock Insuficiente',
-            text: `Solo tienes ${stockDisponible} unidades disponibles para asignar.`,
-            icon: 'warning',
-            confirmButtonColor: '#719c44'
-        });
+        Swal.fire({ title: 'Stock Insuficiente', text: `Solo tienes ${stockDisponible} unidades disponibles.`, icon: 'warning', confirmButtonColor: '#719c44' });
         return;
     }
 
@@ -134,10 +128,7 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
       const payload = {
         iap_id: Number(iapSeleccionada.id),
         detalles: [
-            {
-                inventario_id: Number(selectedItem.id),
-                cantidad: cantidadFinal
-            }
+            { inventario_id: Number(selectedItem.id), cantidad: cantidadFinal }
         ]
       };
 
@@ -157,19 +148,11 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
       loadInventario();       
 
     } catch (error: any) {
-      console.error("Error completo:", error);
-      
       let mensajeError = "Error al conectar con el servidor.";
       if (error.response && error.response.data) {
           mensajeError = error.response.data.message || JSON.stringify(error.response.data);
       }
-
-      Swal.fire({
-        title: 'Error',
-        text: mensajeError,
-        icon: 'error',
-        confirmButtonColor: '#353131'
-      });
+      Swal.fire({ title: 'Error', text: mensajeError, icon: 'error', confirmButtonColor: '#353131' });
     }
   };
 
@@ -185,7 +168,7 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full animate-fade-in p-6">
       
-      {/* IZQUIERDA: INVENTARIO */}
+      {/* IZQUIERDA: INVENTARIO AGRUPADO */}
       <div className="lg:col-span-4 bg-white p-4 rounded-2xl border border-[#c0c6b6]/30 shadow-sm flex flex-col h-[calc(100vh-140px)]">
         <h3 className="font-bold text-[#353131] flex items-center gap-2 mb-4 border-b border-[#f2f5f0] pb-3">
           <Package className="text-[#719c44]" /> 
@@ -198,49 +181,67 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
                 <p className="text-[#817e7e] font-medium animate-pulse">Cargando inventario...</p>
             </div>
         ) : (
-            <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar space-y-2">
-            {inventario.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-40 text-center">
-                    <p className="text-gray-400 text-sm">No hay productos con stock disponible.</p>
-                </div>
-            )}
-            {inventario.map((item, index) => (
-                <div 
-                key={item.id || index}
-                onClick={() => handleSelectProducto(item)}
-                className={`
-                    p-3 rounded-xl border cursor-pointer transition-all duration-200 relative group
-                    ${selectedItem?.id === item.id 
-                        ? 'border-[#719c44] bg-[#f2f5f0] ring-1 ring-[#719c44]/30 shadow-sm' 
-                        : 'border-transparent hover:bg-[#f9fafb] hover:border-[#c0c6b6]/50'}
-                `}
-                >
-                <div className="flex justify-between items-start">
-                    <div className="flex-1 pr-2">
-                        <p className={`font-bold text-sm line-clamp-1 ${selectedItem?.id === item.id ? 'text-[#353131]' : 'text-[#817e7e]'}`}>
-                            {item.nombre_producto}
-                        </p>
-                        <span className="text-[10px] uppercase tracking-wider text-[#817e7e] font-bold bg-[#f9fafb] px-1.5 py-0.5 rounded border border-[#e5e7eb] mt-1 inline-block">
-                            {item.categoria_producto}
-                        </span>
-                    </div>
-                    <span className={`text-xs font-bold px-2 py-1 rounded-lg ${selectedItem?.id === item.id ? 'bg-[#719c44] text-white' : 'bg-[#e5e7eb] text-[#817e7e]'}`}>
-                        {item.stock_actual ?? item.cantidad} {item.unidad_medida}
-                    </span>
-                </div>
-                
-                {selectedItem?.id === item.id && (
-                    <div className="absolute right-[-10px] top-1/2 -translate-y-1/2 bg-[#719c44] text-white p-1 rounded-full shadow-lg animate-in slide-in-from-left-2 z-10">
-                        <ArrowRight size={14} />
+            <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar space-y-6">
+                {inventario.length === 0 && (
+                    <div className="flex flex-col items-center justify-center h-40 text-center">
+                        <p className="text-gray-400 text-sm">No hay productos con stock disponible.</p>
                     </div>
                 )}
-                </div>
-            ))}
+
+                {/* ITERAMOS POR CATEGORÍAS */}
+                {sortedCategories.map((categoria) => (
+                    <div key={categoria} className="space-y-2">
+                        {/* Título de Categoría Sticky */}
+                        <div className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 py-1 border-b border-[#f2f5f0]">
+                            <h4 className="text-xs font-extrabold text-[#719c44] uppercase tracking-wider flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#719c44]"></span>
+                                {categoria}
+                            </h4>
+                        </div>
+
+                        {/* Productos de esta categoría */}
+                        <div className="space-y-2 pl-2">
+                            {groupedInventory[categoria].map((item : any) => (
+                                <div 
+                                    key={item.id}
+                                    onClick={() => handleSelectProducto(item)}
+                                    className={`
+                                        p-3 rounded-xl border cursor-pointer transition-all duration-200 relative group flex items-center gap-3
+                                        ${selectedItem?.id === item.id 
+                                            ? 'border-[#719c44] bg-[#f2f5f0] ring-1 ring-[#719c44]/30 shadow-sm' 
+                                            : 'border-transparent hover:bg-[#f9fafb] hover:border-[#c0c6b6]/50'}
+                                    `}
+                                >
+                                    {/* Icono Caja */}
+                                    <div className={`p-2 rounded-lg ${selectedItem?.id === item.id ? 'bg-white text-[#719c44]' : 'bg-[#f2f5f0] text-[#817e7e]'}`}>
+                                        <Box size={18} />
+                                    </div>
+
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`font-bold text-sm truncate ${selectedItem?.id === item.id ? 'text-[#353131]' : 'text-[#817e7e]'}`}>
+                                            {item.nombre_producto}
+                                        </p>
+                                    </div>
+
+                                    <span className={`text-xs font-bold px-2 py-1 rounded-lg ${selectedItem?.id === item.id ? 'bg-[#719c44] text-white' : 'bg-[#e5e7eb] text-[#817e7e]'}`}>
+                                        {item.stock_actual ?? item.cantidad} {item.unidad_medida}
+                                    </span>
+                                    
+                                    {selectedItem?.id === item.id && (
+                                        <div className="absolute right-[-8px] top-1/2 -translate-y-1/2 bg-[#719c44] text-white p-1 rounded-full shadow-lg animate-in slide-in-from-left-2 z-10">
+                                            <ArrowRight size={12} />
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
             </div>
         )}
       </div>
 
-      {/* DERECHA: SUGERENCIAS INTELIGENTES */}
+      {/* DERECHA: SUGERENCIAS INTELIGENTES (Sin cambios mayores) */}
       <div className="lg:col-span-8 bg-[#f9fafb] p-6 rounded-2xl border border-dashed border-[#c0c6b6] h-[calc(100vh-140px)] flex flex-col overflow-hidden relative">
         
         {!selectedItem ? (
@@ -285,7 +286,6 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
                                 <th className="p-4 text-center">Nivel</th>
                                 <th className="p-4 text-center">Historial</th>
                                 <th className="p-4">Motivos</th>
-                                {/* OCULTAR HEADER ACCIÓN SI ES LECTOR (OPCIONAL, PERO RECOMENDADO) */}
                                 {!isReadOnly && <th className="p-4 text-center">Acción</th>}
                             </tr>
                         </thead>
@@ -330,8 +330,6 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
                                             ))}
                                         </div>
                                     </td>
-                                    
-                                    {/* 5. CONDICIONAL: OCULTAR BOTÓN ASIGNAR SI ES LECTOR */}
                                     {!isReadOnly && (
                                         <td className="p-4 text-center">
                                             <button 
@@ -351,7 +349,7 @@ export const EntregasView = ({ userRole }: EntregasViewProps) => {
         )}
       </div>
 
-      {/* MODAL CONFIRMACIÓN (Solo se renderiza si no es lector, protección adicional) */}
+      {/* MODAL CONFIRMACIÓN */}
       {!isReadOnly && (
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Confirmar Salida de Almacén" variant="japem">
             <div className="space-y-6 p-2">

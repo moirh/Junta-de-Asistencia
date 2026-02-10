@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // Ajusta si tu puerto es diferente (ej. 8000 o 8080)
-const API_URL = "http://localhost:8000/api";
+const API_URL = "http://192.168.1.90:8000/api";
 
 // Helper para obtener el token actual
 const getHeaders = () => {

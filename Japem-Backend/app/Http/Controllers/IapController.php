@@ -56,8 +56,7 @@ class IapController extends Controller
         // Usamos 'ILIKE' porque estás en PostgreSQL (ignora mayúsculas)
         $candidatos = Iap::where('estatus', 'Activa')
             ->where(function ($query) use ($producto) {
-                $query->where('necesidad_primaria', 'ILIKE', "%$producto%")
-                    ->orWhere('necesidad_complementaria', 'ILIKE', "%$producto%")
+                $query->Where('necesidad_complementaria', 'ILIKE', "%$producto%")
                     ->orWhere('rubro', 'ILIKE', "%$producto%");
             })
             // 3. Reglas de Prioridad
@@ -68,5 +67,53 @@ class IapController extends Controller
             ->get();
 
         return response()->json($candidatos);
+    }
+    // Asegúrate de importar esto arriba: use Illuminate\Support\Facades\Log;
+
+    public function importar(Request $request)
+    {
+        $request->validate(['archivo' => 'required|file|mimes:csv,txt']);
+
+        try {
+            $file = $request->file('archivo');
+            // Abrimos el archivo
+            $data = array_map('str_getcsv', file($file->getRealPath()));
+
+            // Quitamos la primera fila (los encabezados: Nombre, Estatus, etc.)
+            $header = array_shift($data);
+            $count = 0;
+
+            foreach ($data as $row) {
+                // Validamos que la fila tenga datos (evitar filas vacías al final)
+                if (count($row) < 3) continue;
+
+                /* MAPEO DE COLUMNAS SEGÚN TU IMAGEN:
+                   0: Nombre, 1: Estatus, 2: Rubro, 3: Clasif, 4: Actividad, 
+                   5: Beneficiario (Texto), 6: Población (Num), 7: Nec. Extra, 
+                   8: Cert, 9: Donat, 10: Padrón
+                */
+
+                \App\Models\Iap::create([
+                    'nombre_iap' => utf8_encode($row[0]),
+                    'estatus'    => $row[1] ?? 'Activa',
+                    'rubro'      => $row[2] ?? 'Salud',
+                    'clasificacion'         => $row[3] ?? '',
+                    'actividad_asistencial' => $row[4] ?? '',
+                    'tipo_beneficiario'     => $row[5] ?? '', // Ej: "Fijos: 10"
+                    'personas_beneficiadas' => is_numeric($row[6]) ? $row[6] : 0,
+                    'necesidad_complementaria' => $row[7] ?? '',
+                    // Convertimos el "1" o "0" del Excel a booleano real
+                    'es_certificada'             => ($row[8] ?? 0) == '1',
+                    'tiene_donataria_autorizada' => ($row[9] ?? 0) == '1',
+                    'tiene_padron_beneficiarios' => ($row[10] ?? 0) == '1',
+                    'veces_donado' => 0
+                ]);
+                $count++;
+            }
+
+            return response()->json(['message' => "Se importaron $count instituciones exitosamente."]);
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'Error al importar: ' . $e->getMessage()], 500);
+        }
     }
 }

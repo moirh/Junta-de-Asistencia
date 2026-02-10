@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
         User::firstOrCreate(
             ['email' => 'admin@japem.gob.mx'], 
             [
-                'name' => 'Administrador JAPEM',
+                'name' => 'Administrador',
                 'username' => 'admin.japem',  
                 'password' => Hash::make('password'), 
                 'role' => 'admin',            
@@ -36,27 +36,27 @@ class DatabaseSeeder extends Seeder
                 'name' => 'Moises Ruiz',
                 'username' => 'moises.japem',  
                 'password' => Hash::make('123456'), 
-                'role' => 'admin',            
+                'role' => 'superadmin',            
             ]
         );
 
         User::firstOrCreate(
-            ['email' => 'operador@japem.gob.mx'], 
+            ['email' => 'editor@japem.gob.mx'], 
             [
-                'name' => 'Operador SIACE',
-                'username' => 'operador.siace', 
+                'name' => 'Editor',
+                'username' => 'editor.japem', 
                 'password' => Hash::make('password'),
                 'role' => 'editor', 
             ]
         );
 
         User::firstOrCreate(
-            ['email' => 'superadmin@japem.gob.mx'], 
+            ['email' => 'lector@japem.gob.mx'], 
             [
-                'name' => 'Super Admin',
-                'username' => 'superadmin.japem', 
+                'name' => 'Lector',
+                'username' => 'lector.japem', 
                 'password' => Hash::make('123456'),
-                'role' => 'superadmin', 
+                'role' => 'lector', 
             ]
         );
 

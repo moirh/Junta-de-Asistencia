@@ -31,7 +31,6 @@ class EntregaController extends Controller
             $asignacion = Asignacion::findOrFail($request->asignacion_id);
 
             // Verificamos si ya fue entregada para no descontar doble
-            // Revisamos tanto 'procesado' como 'entregado' por compatibilidad
             if (in_array($asignacion->estatus, ['procesado', 'entregado'])) {
                 return response()->json(['message' => 'Esta asignación ya fue entregada anteriormente.'], 400);
             }
@@ -69,7 +68,7 @@ class EntregaController extends Controller
 
             // 4. ACTUALIZAR LA ASIGNACIÓN (CONFIRMAR ENTREGA)
             $asignacion->update([
-                'estatus' => 'entregado', // Usamos 'entregado' para que coincida con la lógica visual
+                'estatus' => 'entregado',
                 'responsable_entrega' => $request->responsable_entrega,
                 'lugar_entrega' => $request->lugar_entrega,
                 'fecha_entrega_real' => now(),
@@ -87,9 +86,9 @@ class EntregaController extends Controller
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
-            // Si el error es por el Constraint Check de la BD, avisa claramente
+            // Manejo de error específico de base de datos (Check Constraint)
             if (str_contains($e->getMessage(), 'asignaciones_estatus_check')) {
-                return response()->json(['message' => 'Error de Base de Datos: El estatus "entregado" no está permitido. Ejecuta el SQL de corrección en PgAdmin.'], 500);
+                return response()->json(['message' => 'Error de BD: El estatus "entregado" no está permitido. Revisa las restricciones de la tabla.'], 500);
             }
             return response()->json(['message' => 'Error: ' . $e->getMessage()], 500);
         }
@@ -97,8 +96,7 @@ class EntregaController extends Controller
 
     /**
      * HISTORIAL (PRINCIPAL)
-     * Trae TODO (Pendientes + Entregados) para que la tabla se actualice en tiempo real
-     * sin desaparecer los registros al cambiar de estatus.
+     * Trae TODO (Pendientes + Entregados) para que la tabla del frontend se actualice en tiempo real.
      */
     public function historial()
     {
@@ -108,19 +106,14 @@ class EntregaController extends Controller
             ->select(
                 'asignaciones.id',
                 'asignaciones.estatus',
-                // Fecha de asignación (cuando se apartó)
                 DB::raw('COALESCE(asignaciones.fecha_asignacion, asignaciones.created_at) as fecha'),
-
-                // Datos de Entrega Real
                 'asignaciones.fecha_entrega_real',
                 'asignaciones.responsable_entrega',
                 'asignaciones.lugar_entrega',
-
                 'iaps.nombre_iap',
                 'inventarios.nombre_producto as producto_nombre',
                 'detalle_asignaciones.cantidad'
             )
-            // IMPORTANTE: NO HAY WHERE. Traemos todo para que el frontend decida cómo pintar el botón.
             ->orderByDesc('asignaciones.id')
             ->get();
 
@@ -128,8 +121,7 @@ class EntregaController extends Controller
     }
 
     /**
-     * PENDIENTES
-     * (Opcional, por si lo usas en algún dashboard específico)
+     * PENDIENTES (Opcional, por si se requiere filtrado)
      */
     public function pendientes()
     {
@@ -154,7 +146,7 @@ class EntregaController extends Controller
     }
 
     /**
-     * ALGORITMO DE SUGERENCIAS
+     * ALGORITMO DE SUGERENCIAS (NUEVO - BASADO EN MATRIZ DE CLASIFICACIÓN)
      */
     public function sugerirAsignacion($inventarioId)
     {
@@ -164,95 +156,130 @@ class EntregaController extends Controller
         $prodNombre = strtoupper(trim($producto->nombre_producto));
         $prodCat    = strtoupper(trim($producto->categoria_producto));
 
-        $candidatos = Iap::where('estatus', 'Activa')
-            ->where('es_certificada', true)
-            ->where('tiene_donataria_autorizada', true)
-            ->where('tiene_padron_beneficiarios', true)
-            ->get();
+        // 1. DEFINICIÓN DE LA MATRIZ DE REGLAS (Basada en tu imagen)
+        // [Palabra Clave] => [Clasificaciones Permitidas]
+        $matrizReglas = [
+            'ALIMENT' => ['A1', 'A2', 'B2'],
+            'LIMPIEZA' => ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'C4'],
+            'ASEO' => ['A1', 'A2'],
+            'HIGIENE' => ['A1', 'A2'],
+            'PAÑAL' => [], // Se define dinámicamente abajo
+            'PAPELERIA' => ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'C4'],
+            'OFICINA' => ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'C4'],
+            'COCINA' => ['A1', 'A2'],
+            'COLCHON' => ['A1', 'A2'],
+            'BLANCOS' => ['A1', 'A2'],
+            'ENTRETENIMIENTO' => ['A1', 'A2', 'B2'],
+            'JUGUETE' => ['A2', 'A3', 'B2'],
+            'ESCOLAR' => ['A2', 'A3', 'B2'],
+            'DIDACTICO' => ['A2', 'A3'],
+            'ROPA' => [], // Se define dinámicamente abajo
+            'MEDICAMENTO' => ['C1', 'A1', 'A2'],
+            'CURACION' => ['A1', 'A2', 'B1'],
+            'SILLA' => ['B1'], // Sillas de ruedas
+            'REHABILITA' => ['B1'],
+            'PROTECCION CIVIL' => ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3'],
+            'MOBILIARIO' => ['A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3'],
+            'ANIMAL' => ['D', 'C4'],
+        ];
 
-        $sugerencias = $candidatos->map(function ($iap) use ($prodNombre, $prodCat) {
+        // --- LÓGICA DINÁMICA PARA PAÑALES ---
+        if (str_contains($prodNombre, 'PAÑAL') || str_contains($prodCat, 'PAÑAL')) {
+            if (str_contains($prodNombre, 'ADULTO') || str_contains($prodNombre, 'GRANDE')) {
+                $matrizReglas['PAÑAL'] = ['A1']; // Solo Asilos
+            } else {
+                $matrizReglas['PAÑAL'] = ['A2']; // Niños (Default)
+            }
+        }
+
+        // --- LÓGICA DINÁMICA PARA ROPA ---
+        if (str_contains($prodNombre, 'ROPA') || str_contains($prodCat, 'ROPA') || str_contains($prodCat, 'VESTIDO')) {
+            if (str_contains($prodNombre, 'NIÑ') || str_contains($prodNombre, 'BEBE') || str_contains($prodNombre, 'INFANTIL')) {
+                $matrizReglas['ROPA'] = ['A2']; // Niños
+            } else {
+                $matrizReglas['ROPA'] = ['C1', 'C2', 'C3']; // Adultos / Vulnerables
+            }
+        }
+
+        // 2. OBTENER CANDIDATOS (Solo IAPs Activas)
+        $candidatos = Iap::where('estatus', 'Activa')->get();
+
+        $sugerencias = $candidatos->map(function ($iap) use ($prodNombre, $prodCat, $matrizReglas) {
             $puntaje = 0;
             $razones = [];
+            $esCandidato = false;
 
-            $necPrim = strtoupper($iap->necesidad_primaria ?? '');
-            $necComp = strtoupper($iap->necesidad_complementaria ?? '');
-            $rubro   = strtoupper($iap->rubro ?? '');
-            $actividad = strtoupper($iap->actividad_asistencial ?? '');
             $clase = strtoupper($iap->clasificacion);
+            $necComp = strtoupper($iap->necesidad_complementaria ?? '');
 
-            $verificarMatchEnLista = function ($listaString, $busqueda) {
-                if (empty($listaString)) return false;
-                $items = explode(',', $listaString);
+            // --- FILTRO 1: ¿CUMPLE LA TABLA? (Criterio Principal) ---
+            foreach ($matrizReglas as $keyword => $clasesPermitidas) {
+                // Buscamos coincidencia en Nombre o Categoría del producto
+                if (str_contains($prodNombre, $keyword) || str_contains($prodCat, $keyword)) {
+                    // Verificamos si la clase de la IAP está permitida
+                    if (in_array($clase, $clasesPermitidas)) {
+                        $esCandidato = true;
+                        $razones[] = "✅ Autorizado por Clasificación";
+                        break; // Ya cumple, salimos del ciclo
+                    }
+                }
+            }
+
+            // --- FILTRO 2: NECESIDAD COMPLEMENTARIA (Excepción) ---
+            // Solo revisamos esto si NO pasó el filtro de la tabla
+            if (!$esCandidato && !empty($necComp)) {
+                $items = explode(',', $necComp);
                 foreach ($items as $item) {
                     $itemLimpio = trim($item);
                     if (empty($itemLimpio)) continue;
-                    if (str_contains($busqueda, $itemLimpio) || str_contains($itemLimpio, $busqueda)) return true;
-                }
-                return false;
-            };
-
-            $tipoMatch = 'NINGUNO';
-
-            if ($verificarMatchEnLista($necPrim, $prodNombre)) $tipoMatch = 'PRIMARIA';
-            elseif ($verificarMatchEnLista($necComp, $prodNombre)) $tipoMatch = 'COMPLEMENTARIA';
-            else {
-                if ($verificarMatchEnLista($necPrim, $prodCat) || $verificarMatchEnLista($necComp, $prodCat)) $tipoMatch = 'CATEGORIA';
-                else {
-                    $esAfin = false;
-                    if ($prodCat === 'ALIMENTOS' && (str_contains($rubro, 'ALIMENT') || str_contains($rubro, 'NUTRICI') || str_contains($actividad, 'COMEDOR'))) $esAfin = true;
-                    if ($prodCat === 'MEDICAMENTOS' && (str_contains($rubro, 'SALUD') || str_contains($rubro, 'MÉDIC') || str_contains($rubro, 'HOSPITAL') || str_contains($rubro, 'REHABILITA'))) $esAfin = true;
-                    if ($prodCat === 'ROPA' && (str_contains($rubro, 'VESTIDO') || str_contains($rubro, 'VIVIENDA') || str_contains($rubro, 'ASILO'))) $esAfin = true;
-                    if ($prodCat === 'ALIMENTOS' && in_array($clase, ['A1', 'A2', 'A3', 'A4'])) $esAfin = true;
-                    if ($esAfin) $tipoMatch = 'CATEGORIA';
+                    // Búsqueda de coincidencia
+                    if (str_contains($prodNombre, $itemLimpio) || str_contains($prodCat, $itemLimpio)) {
+                        $esCandidato = true;
+                        $razones[] = "⚠️ Excepción: Necesidad Complementaria ($itemLimpio)";
+                        break;
+                    }
                 }
             }
 
-            if ($tipoMatch === 'NINGUNO') return null;
+            // SI NO ES CANDIDATO, LO DESCARTAMOS (RETORNA NULL)
+            if (!$esCandidato) return null;
 
-            if (in_array($clase, ['A1', 'A2', 'A3', 'A4'])) {
-                $puntaje += 400000;
-                $razones[] = "Nivel 1: Beneficiarios Fijos (A)";
-            } elseif (in_array($clase, ['B1', 'B2', 'B3'])) {
-                $puntaje += 300000;
-                $razones[] = "Nivel 2: Beneficiarios Temporales (B)";
-            } elseif (in_array($clase, ['C1', 'C2', 'C3', 'C4'])) {
-                $puntaje += 200000;
-                $razones[] = "Nivel 3: Beneficiarios Flotantes (C)";
-            } elseif ($clase === 'D') {
-                $puntaje += 100000;
-                $razones[] = "Nivel 4: Seres Sintientes (D)";
+
+            // --- SISTEMA DE PUNTOS (SOLO PARA ORDENAR/DESEMPATAR) ---
+
+            // 1. Méritos Administrativos
+            if ($iap->es_certificada) {
+                $puntaje += 20;
+                $razones[] = "🎖️ Certificada";
+            }
+            if ($iap->tiene_donataria_autorizada) {
+                $puntaje += 30;
+                $razones[] = "📄 Donataria Autorizada";
+            }
+            if ($iap->tiene_padron_beneficiarios) {
+                $puntaje += 20;
+                $razones[] = "👥 Padrón Vigente";
             }
 
-            if ($tipoMatch === 'PRIMARIA') {
-                $puntaje += 50000;
-                $razones[] = "🎯 MATCH: Necesidad Primaria";
-            } elseif ($tipoMatch === 'COMPLEMENTARIA') {
-                $puntaje += 30000;
-                $razones[] = "☑️ MATCH: Necesidad Complementaria";
-            } elseif ($tipoMatch === 'CATEGORIA') {
-                $puntaje += 10000;
-                $razones[] = "📂 MATCH: Afinidad por Categoría";
-            }
-
+            // 2. Equidad (Quien menos tiene, va primero)
             if ($iap->veces_donado == 0) {
-                $puntaje += 5000;
-                $razones[] = "🌟 Nuevo (0 donativos)";
+                $puntaje += 50;
             } else {
-                $puntaje -= ($iap->veces_donado * 10);
+                // Penalización ligera para rotar: -5 puntos por cada donación previa
+                $penalizacion = ($iap->veces_donado * 5);
+                $puntaje -= $penalizacion;
             }
 
             return [
                 'id' => $iap->id,
                 'nombre_iap' => $iap->nombre_iap,
                 'clasificacion' => $iap->clasificacion,
-                'necesidad_primaria' => $iap->necesidad_primaria,
-                'necesidad_complementaria' => $iap->necesidad_complementaria,
-                'veces_donado' => $iap->veces_donado,
                 'puntaje' => $puntaje,
                 'razones' => $razones
             ];
-        })->filter();
+        })->filter()->values(); // Filtramos nulos y reindexamos
 
+        // Ordenamos por puntaje (El mejor calificado administrativamente va primero)
         return response()->json($sugerencias->sortByDesc('puntaje')->values());
     }
 }

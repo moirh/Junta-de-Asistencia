@@ -15,7 +15,7 @@ export interface Iap {
   veces_donado?: number;
 }
 
-const API_URL = "http://127.0.0.1:8000/api/iaps";
+const API_URL = "http://192.168.1.90:8000/api/iaps";
 
 const getAuthConfig = () => {
   const token = localStorage.getItem("token");

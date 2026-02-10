@@ -21,7 +21,7 @@ export const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:8000/api/login", {
+      const response = await axios.post("http://192.168.1.90:8000/api/login", {
         username, 
         password,
       });
@@ -51,7 +51,7 @@ export const Login = () => {
           
           <div 
             className="absolute inset-0 bg-cover bg-center transition-transform duration-[30s] hover:scale-110"
-            style={{ backgroundImage: "url('/Japem.jpeg')" }}
+            style={{ backgroundImage: "url('/Login2.webp')" }}
           ></div>
 
           {/* CONTENIDO DE TEXTO - Arriba a la Izquierda */}

@@ -30,6 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/inventario/precios', [InventarioController::class, 'updatePrices']);
     Route::get('iaps/sugerencias', [IapController::class, 'sugerirIaps']);
     Route::apiResource('iaps', IapController::class);
+    Route::post('/iaps/importar', [IapController::class, 'importar']);
 
     // ==========================================
     // 4. MÓDULO DE ENTREGAS (CORREGIDO)

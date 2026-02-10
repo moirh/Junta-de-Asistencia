@@ -3,7 +3,7 @@ import axios from 'axios';
 import type { Donante } from '../types'; // Asegúrate de que types.ts esté en src/
 
 // Ajusta la URL si tu backend corre en otro puerto
-const API_URL = 'http://127.0.0.1:8000/api/donantes';
+const API_URL = 'http://192.168.1.90:8000/api/donantes';
 
 // Configuración para enviar el token en cada petición
 const getAuthConfig = () => {
