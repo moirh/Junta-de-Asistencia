@@ -22,7 +22,7 @@ return [
     'allowed_origins' => [
         'http://localhost:5173',
         'http://127.0.0.1:5173',
-        'http://192.168.1.90:5173', // Tu IP
+        'http://192.168.1.198:5173', // Tu IP
     ],
 
     'allowed_origins_patterns' => [],

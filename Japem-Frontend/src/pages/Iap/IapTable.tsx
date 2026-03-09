@@ -8,7 +8,7 @@ import { Modal } from "../../components/ui/Modal";
 import axios from "axios";
 import Swal from 'sweetalert2'; 
 
-const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.90:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.198:8000/api";
 
 // SEPARATOR PIPE (|)
 const SEPARATOR = "|"; 

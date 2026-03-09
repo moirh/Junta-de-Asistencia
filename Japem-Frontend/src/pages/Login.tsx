@@ -21,7 +21,7 @@ export const Login = () => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post("http://192.168.1.90:8000/api/login", {
+      const response = await axios.post("http://192.168.1.198:8000/api/login", {
         username, 
         password,
       });

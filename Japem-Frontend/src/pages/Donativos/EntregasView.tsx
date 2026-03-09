@@ -8,7 +8,7 @@ import { getInventario } from "../../services/inventarioService";
 import { guardarAsignacion } from "../../services/distribucionService";
 
 // URL Dinámica (Mejora recomendada)
-const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.90:8000/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.198:8000/api";
 
 interface EntregasViewProps {
   userRole: string;
