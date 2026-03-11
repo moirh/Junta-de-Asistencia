@@ -1,16 +1,36 @@
 import { useState, useEffect } from "react";
-import { 
-  Plus, Eye, User, Package, HandHeart, Trash2, Box, Tag, 
-  Calendar, CheckCircle, Barcode, AlertTriangle, Layers, 
-  Ruler, Clock, List, Hash, Save 
+import {
+  Plus,
+  Eye,
+  User,
+  Package,
+  HandHeart,
+  Trash2,
+  Box,
+  Tag,
+  Calendar,
+  CheckCircle,
+  Barcode,
+  AlertTriangle,
+  Layers,
+  Ruler,
+  Clock,
+  List,
+  Hash,
+  Save,
+  Undo2, // <-- AGREGADO Undo2 (icono de devolver)
 } from "lucide-react";
 import { Table } from "../../components/ui/Table";
 import { Modal } from "../../components/ui/Modal";
 import { getDonativos, createDonativo } from "../../services/donativosService";
 import { getDonantes } from "../../services/donantesService";
-import { getInventario, updateInventarioPrecios } from "../../services/inventarioService"; 
+import {
+  getInventario,
+  updateInventarioPrecios,
+  devolverItemInventario, // <-- AGREGADO (Necesitarás crear esta función en tu servicio)
+} from "../../services/inventarioService";
 import type { Donativo, Donante } from "../../types";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
 interface ProductoReferencia {
   nombre: string;
@@ -26,7 +46,6 @@ interface DonativosTableProps {
 
 // 2. RECIBIMOS LA PROP userRole
 export const DonativosTable = ({ userRole }: DonativosTableProps) => {
-  
   // 3. DEBUG: MIRA ESTO EN LA CONSOLA (F12) PARA VER QUÉ ROL LLEGA REALMENTE
   // Si aquí sale "lector", revisa tu localStorage.
   console.log("Rol recibido en DonativosTable:", userRole);
@@ -34,25 +53,30 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
   // 4. DEFINIR SI ES SOLO LECTURA
   // Si el rol es 'lector', activamos el modo restringido.
   // Nota: Usa toLowerCase() por si en la BD está como 'Admin' o 'Lector'
-  const isReadOnly = (userRole || '').toLowerCase() === 'lector';
+  // Lógica de roles: Admin y Donativos pueden editar. Asistencial solo lee.
+  const role = (userRole || '').toLowerCase();
+  const allowedRoles = ['admin', 'superadmin', 'editor', 'donativos'];
+  const isReadOnly = !allowedRoles.includes(role);
 
   const [donativos, setDonativos] = useState<Donativo[]>([]);
   const [donantes, setDonantes] = useState<Donante[]>([]);
-  
-  const [catalogoReferencias, setCatalogoReferencias] = useState<ProductoReferencia[]>([]); 
+
+  const [catalogoReferencias, setCatalogoReferencias] = useState<
+    ProductoReferencia[]
+  >([]);
   const [loading, setLoading] = useState(false);
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedDonativo, setSelectedDonativo] = useState<any | null>(null);
 
   const initialFormState = {
     donante_id: 0,
-    fecha_donativo: new Date().toISOString().split('T')[0],
+    fecha_donativo: new Date().toISOString().split("T")[0],
     folio_donativo: "",
     monto_total_deducible: 0,
     observaciones: "",
-    detalles: [] as any[]
+    detalles: [] as any[],
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -66,44 +90,45 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
       const [donativosData, donantesData, inventarioData] = await Promise.all([
         getDonativos(),
         getDonantes(),
-        getInventario()
+        getInventario(),
       ]);
       setDonativos(Array.isArray(donativosData) ? donativosData : []);
       setDonantes(Array.isArray(donantesData) ? donantesData : []);
-      
+
       const mapaUnicos = new Map();
 
       const registrarProducto = (nombre: string, item: any) => {
-         if (!nombre) return;
-         if (!mapaUnicos.has(nombre)) {
-            mapaUnicos.set(nombre, {
-               nombre: nombre,
-               clave_sat: item.clave_sat ? String(item.clave_sat) : "",
-               categoria: item.categoria_producto || "",
-               unidad_medida: item.unidad_medida || item.clave_unidad || "PZA"
-            });
-         }
+        if (!nombre) return;
+        if (!mapaUnicos.has(nombre)) {
+          mapaUnicos.set(nombre, {
+            nombre: nombre,
+            clave_sat: item.clave_sat ? String(item.clave_sat) : "",
+            categoria: item.categoria_producto || "",
+            unidad_medida: item.unidad_medida || item.clave_unidad || "PZA",
+          });
+        }
       };
 
       if (Array.isArray(inventarioData)) {
         inventarioData.forEach((item: any) => {
-           registrarProducto(item.nombre_producto, item);
+          registrarProducto(item.nombre_producto, item);
         });
       }
 
       if (Array.isArray(donativosData)) {
-         donativosData.forEach((d: any) => {
-            if (d.inventarios && Array.isArray(d.inventarios)) {
-               d.inventarios.forEach((det: any) => {
-                  registrarProducto(det.nombre_producto, det);
-               });
-            }
-         });
+        donativosData.forEach((d: any) => {
+          if (d.inventarios && Array.isArray(d.inventarios)) {
+            d.inventarios.forEach((det: any) => {
+              registrarProducto(det.nombre_producto, det);
+            });
+          }
+        });
       }
-      
-      const referencias = Array.from(mapaUnicos.values()).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
-      setCatalogoReferencias(referencias);
 
+      const referencias = Array.from(mapaUnicos.values()).sort(
+        (a: any, b: any) => a.nombre.localeCompare(b.nombre),
+      );
+      setCatalogoReferencias(referencias);
     } catch (error) {
       console.error("Error cargando datos:", error);
     } finally {
@@ -113,9 +138,7 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
 
   // --- LÓGICA DE EDICIÓN DE PRECIOS ---
   const handlePriceChange = (index: number, newVal: string) => {
-    // PROTECCIÓN: Si es lector, no permitimos editar
     if (isReadOnly) return;
-
     if (!selectedDonativo || !selectedDonativo.inventarios) return;
 
     const newInventarios = [...selectedDonativo.inventarios];
@@ -129,30 +152,99 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
   };
 
   const handleUpdatePrices = async () => {
-    // PROTECCIÓN: Si es lector, no guardamos
     if (isReadOnly) return;
 
     try {
-        // --- CORRECCIÓN: Descomentado para que funcione ---
-        await updateInventarioPrecios(selectedDonativo.inventarios); 
-        // --------------------------------------------------
-        
-        console.log("Guardando cambios de precios:", selectedDonativo.inventarios);
+      await updateInventarioPrecios(selectedDonativo.inventarios);
 
-        Swal.fire({
-            title: 'Precios Actualizados',
-            text: 'Los precios de recuperación se han guardado correctamente.',
-            icon: 'success',
-            confirmButtonColor: '#719c44'
-        });
-        
-        setIsViewModalOpen(false);
-        fetchData(); 
+      Swal.fire({
+        title: "Precios Actualizados",
+        text: "Los precios de recuperación se han guardado correctamente.",
+        icon: "success",
+        confirmButtonColor: "#719c44",
+      });
+
+      setIsViewModalOpen(false);
+      fetchData();
     } catch (error) {
-        console.error(error);
-        Swal.fire('Error', 'No se pudieron actualizar los precios', 'error');
+      console.error(error);
+      Swal.fire("Error", "No se pudieron actualizar los precios", "error");
     }
   };
+
+  // --- NUEVA LÓGICA DE DEVOLUCIÓN DE PRODUCTOS (MERMA) ---
+  const handleDevolverItem = async (item: any) => {
+    if (isReadOnly) return;
+
+    if (item.cantidad <= 0) {
+      Swal.fire(
+        "Atención",
+        "Ya no hay cantidad disponible de este producto para devolver.",
+        "info",
+      );
+      return;
+    }
+
+    const { value: cantidadDevolver } = await Swal.fire({
+      title: "Devolver Producto / Merma",
+      html: `¿Cuántas unidades de <b>${item.nombre_producto}</b> vas a retirar por daño o devolución?<br><br>Disponible: <b>${item.cantidad}</b>`,
+      input: "number",
+      inputAttributes: {
+        min: "1",
+        max: String(item.cantidad),
+        step: "1",
+      },
+      showCancelButton: true,
+      confirmButtonText: "Registrar Salida",
+      cancelButtonText: "Cancelar",
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#817e7e",
+    });
+
+    if (cantidadDevolver) {
+      const cant = Number(cantidadDevolver);
+      if (cant <= 0 || cant > item.cantidad) {
+        Swal.fire("Error", "Cantidad inválida.", "error");
+        return;
+      }
+
+      try {
+        // Llama a tu backend para restar la cantidad
+        if (typeof devolverItemInventario === "function") {
+          await devolverItemInventario(item.id, cant);
+        }
+
+        Swal.fire(
+          "¡Devolución Registrada!",
+          `Se han retirado ${cant} unidades de ${item.nombre_producto}.`,
+          "success",
+        );
+
+        // Actualizar la vista local para no tener que recargar todo de golpe
+        const newInventarios = selectedDonativo.inventarios.map((inv: any) => {
+          if (inv.id === item.id) {
+            return { ...inv, cantidad: inv.cantidad - cant };
+          }
+          return inv;
+        });
+        setSelectedDonativo({
+          ...selectedDonativo,
+          inventarios: newInventarios,
+        });
+
+        // Recargar datos para tener el inventario real actualizado
+        fetchData();
+      } catch (error) {
+        console.error(error);
+        Swal.fire(
+          "Error",
+          "No se pudo procesar la devolución en el servidor.",
+          "error",
+        );
+      }
+    }
+  };
+  // --------------------------------------------------------
 
   const addProductoRow = () => {
     setFormData({
@@ -167,14 +259,14 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
           fecha_caducidad: "",
           modalidad: "",
           clave_unidad: "",
-          cantidad: 1, 
+          cantidad: 1,
           precio_venta_unitario: 0,
           precio_venta_total: 0,
           precio_unitario_deducible: 0,
           monto_deducible_total: 0,
-          isManual: false 
-        }
-      ]
+          isManual: false,
+        },
+      ],
     });
   };
 
@@ -182,8 +274,8 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
     const newDetalles = [...formData.detalles];
     newDetalles[index].isManual = !newDetalles[index].isManual;
     if (newDetalles[index].isManual) {
-        newDetalles[index].nombre_producto = "";
-        newDetalles[index].clave_sat = "";
+      newDetalles[index].nombre_producto = "";
+      newDetalles[index].clave_sat = "";
     }
     setFormData({ ...formData, detalles: newDetalles });
   };
@@ -199,21 +291,25 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
     newDetalles[index][field] = value;
 
     if (field === "nombre_producto" && !newDetalles[index].isManual) {
-        const productoEncontrado = catalogoReferencias.find(p => p.nombre === value);
-        if (productoEncontrado) {
-            newDetalles[index].clave_sat = productoEncontrado.clave_sat || "";
-            if (productoEncontrado.categoria) newDetalles[index].categoria_producto = productoEncontrado.categoria;
-            if (productoEncontrado.unidad_medida) newDetalles[index].clave_unidad = productoEncontrado.unidad_medida;
-        }
+      const productoEncontrado = catalogoReferencias.find(
+        (p) => p.nombre === value,
+      );
+      if (productoEncontrado) {
+        newDetalles[index].clave_sat = productoEncontrado.clave_sat || "";
+        if (productoEncontrado.categoria)
+          newDetalles[index].categoria_producto = productoEncontrado.categoria;
+        if (productoEncontrado.unidad_medida)
+          newDetalles[index].clave_unidad = productoEncontrado.unidad_medida;
+      }
     }
 
-    if (field === 'cantidad' || field === 'precio_venta_unitario') {
+    if (field === "cantidad" || field === "precio_venta_unitario") {
       const cant = Number(newDetalles[index].cantidad) || 0;
       const price = Number(newDetalles[index].precio_venta_unitario) || 0;
       newDetalles[index].precio_venta_total = cant * price;
     }
-    
-    if (field === 'cantidad' || field === 'precio_unitario_deducible') {
+
+    if (field === "cantidad" || field === "precio_unitario_deducible") {
       const cant = Number(newDetalles[index].cantidad) || 0;
       const price = Number(newDetalles[index].precio_unitario_deducible) || 0;
       newDetalles[index].monto_deducible_total = cant * price;
@@ -224,74 +320,112 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
 
   const needsExpiration = (categoria: string) => {
     const cat = categoria.toUpperCase();
-    return cat.includes("ALIMENT") || cat.includes("MEDICAMENT") || cat.includes("FARMACIA") || cat.includes("PERECEDERO");
+    return (
+      cat.includes("ALIMENT") ||
+      cat.includes("MEDICAMENT") ||
+      cat.includes("FARMACIA") ||
+      cat.includes("PERECEDERO")
+    );
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.donante_id === 0) { 
-        Swal.fire({ title: 'Faltan datos', text: 'Por favor selecciona un donante.', icon: 'warning', confirmButtonColor: '#719c44' }); return; 
+    if (formData.donante_id === 0) {
+      Swal.fire({
+        title: "Faltan datos",
+        text: "Por favor selecciona un donante.",
+        icon: "warning",
+        confirmButtonColor: "#719c44",
+      });
+      return;
     }
-    if (formData.detalles.length === 0) { 
-        Swal.fire({ title: 'Sin productos', text: 'Debes agregar al menos un producto.', icon: 'warning', confirmButtonColor: '#719c44' }); return; 
+    if (formData.detalles.length === 0) {
+      Swal.fire({
+        title: "Sin productos",
+        text: "Debes agregar al menos un producto.",
+        icon: "warning",
+        confirmButtonColor: "#719c44",
+      });
+      return;
     }
 
     try {
-      const totalGlobal = formData.detalles.reduce((sum, item) => sum + (item.monto_deducible_total || 0), 0);
-      await createDonativo({ ...formData, monto_total_deducible: totalGlobal }); 
-      
-      Swal.fire({ title: '¡Entrada Registrada!', text: 'El donativo se guardó correctamente.', icon: 'success', confirmButtonColor: '#719c44', confirmButtonText: 'Excelente' });
+      const totalGlobal = formData.detalles.reduce(
+        (sum, item) => sum + (item.monto_deducible_total || 0),
+        0,
+      );
+      await createDonativo({ ...formData, monto_total_deducible: totalGlobal });
+
+      Swal.fire({
+        title: "¡Entrada Registrada!",
+        text: "El donativo se guardó correctamente.",
+        icon: "success",
+        confirmButtonColor: "#719c44",
+        confirmButtonText: "Excelente",
+      });
       setIsModalOpen(false);
       setFormData(initialFormState);
-      fetchData(); 
+      fetchData();
     } catch (error) {
       console.error("Error:", error);
-      Swal.fire({ title: 'Error', text: 'Hubo un problema al guardar.', icon: 'error', confirmButtonColor: '#353131' });
+      Swal.fire({
+        title: "Error",
+        text: "Hubo un problema al guardar.",
+        icon: "error",
+        confirmButtonColor: "#353131",
+      });
     }
   };
 
   const donativosParaTabla = donativos.map((d: any) => ({
     ...d,
-    _busqueda: `${d.donante?.razon_social || ''} ${d.inventarios?.map((p: any) => p.nombre_producto).join(" ")} ${d.fecha_donativo}`
+    _busqueda: `${d.donante?.razon_social || ""} ${d.inventarios?.map((p: any) => p.nombre_producto).join(" ")} ${d.fecha_donativo}`,
   }));
 
   const columns = [
     { key: "fecha_donativo" as keyof Donativo, label: "Fecha" },
     { key: "donante" as keyof Donativo, label: "Donante" },
-    { key: "inventarios" as any, label: "Productos (Resumen)" }, 
+    { key: "inventarios" as any, label: "Productos (Resumen)" },
     { key: "monto_total_deducible" as keyof Donativo, label: "Monto Total" },
     { key: "id" as keyof Donativo, label: "Acciones" },
-  ]; 
+  ];
 
   return (
     <div className="p-6 animate-fade-in relative w-full max-w-full">
-      
       {/* HEADER */}
       <div className="relative flex items-center justify-center mb-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-[#353131] flex items-center justify-center gap-2">
-             <HandHeart className="text-[#719c44]" size={28} />
-             Registro de Entradas
+            <HandHeart className="text-[#719c44]" size={28} />
+            Registro de Entradas
           </h1>
-          <p className="text-[#817e7e] mt-1">Gestiona los donativos recibidos e inventario.</p>
+          <p className="text-[#817e7e] mt-1">
+            Gestiona los donativos recibidos e inventario.
+          </p>
         </div>
-        
+
         {/* CONDICIONAL: OCULTAR SI ES LECTOR */}
         {!isReadOnly && (
-            <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
-            <button onClick={() => setIsModalOpen(true)} className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95">
-                <Plus size={20} className="transition-transform duration-500 group-hover:rotate-180" />
-                <span className="hidden sm:inline">Registrar Entrada</span>
+          <div className="absolute right-0 top-1/2 transform -translate-y-1/2">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="cursor-pointer group bg-[#719c44] hover:bg-[#5e8239] text-white px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-md hover:shadow-xl shadow-[#719c44]/30 font-bold transition-all duration-300 ease-out transform hover:scale-105 active:scale-95"
+            >
+              <Plus
+                size={20}
+                className="transition-transform duration-500 group-hover:rotate-180"
+              />
+              <span className="hidden sm:inline">Registrar Entrada</span>
             </button>
-            </div>
+          </div>
         )}
       </div>
 
       {/* TABLA PRINCIPAL */}
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-sm border border-[#c0c6b6]/30 animate-pulse">
-           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#719c44] mb-4"></div>
-           <p className="text-[#817e7e] font-medium">Cargando registros...</p>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#719c44] mb-4"></div>
+          <p className="text-[#817e7e] font-medium">Cargando registros...</p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-xl shadow-[#c0c6b6]/20 border border-[#c0c6b6]/30 overflow-hidden">
@@ -299,42 +433,78 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
             data={donativosParaTabla}
             columns={columns}
             renderCell={(key, value, row: any) => {
-              if (key === "fecha_donativo") return (
-                <div className="flex justify-start items-center gap-2 text-[#353131]">
+              if (key === "fecha_donativo")
+                return (
+                  <div className="flex justify-start items-center gap-2 text-[#353131]">
                     <Calendar size={16} className="text-[#719c44]" />
-                    <span className="capitalize">{new Date(value).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}</span>
-                </div>
-              );
-              if (key === "donante") return (<div className="font-semibold text-[#353131] text-left">{row.donante?.razon_social || "Desconocido"}</div>);
+                    <span className="capitalize">
+                      {new Date(value).toLocaleDateString("es-MX", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </span>
+                  </div>
+                );
+              if (key === "donante")
+                return (
+                  <div className="font-semibold text-[#353131] text-left">
+                    {row.donante?.razon_social || "Desconocido"}
+                  </div>
+                );
               if (key === "inventarios") {
-                const productos = row.inventarios || []; 
+                const productos = row.inventarios || [];
                 const primeros = productos.slice(0, 2);
                 const resto = productos.length - 2;
                 return (
                   <div className="text-sm text-left">
                     {primeros.map((d: any, i: number) => (
-                      <div key={i} className="flex justify-start items-center gap-1 text-[#817e7e] mb-0.5">
-                        <Box size={12} className="text-[#c0c6b6]"/>
-                        <span className="font-medium text-[#353131]">{d.nombre_producto}</span>
-                        <span className="text-[#817e7e] text-xs">({d.cantidad} {d.clave_unidad || d.unidad_medida})</span>
+                      <div
+                        key={i}
+                        className="flex justify-start items-center gap-1 text-[#817e7e] mb-0.5"
+                      >
+                        <Box size={12} className="text-[#c0c6b6]" />
+                        <span className="font-medium text-[#353131]">
+                          {d.nombre_producto}
+                        </span>
+                        <span className="text-[#817e7e] text-xs">
+                          ({d.cantidad} {d.clave_unidad || d.unidad_medida})
+                        </span>
                       </div>
                     ))}
-                    {resto > 0 && <span className="text-xs text-[#719c44] font-semibold">+ {resto} productos más...</span>}
+                    {resto > 0 && (
+                      <span className="text-xs text-[#719c44] font-semibold">
+                        + {resto} productos más...
+                      </span>
+                    )}
                   </div>
                 );
               }
-              if (key === "monto_total_deducible") return (
-                <div className="flex justify-start">
-                    <span className="bg-[#f2f5f0] text-[#719c44] px-3 py-1 rounded-full font-bold text-sm border border-[#c0c6b6]">${Number(value).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
-                </div>
-              );
-              if (key === "id") return (
-                <div className="flex justify-start">
-                    <button onClick={() => { setSelectedDonativo(row); setIsViewModalOpen(true); }} className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm">
-                        <Eye size={18} /> Ver Detalles
+              if (key === "monto_total_deducible")
+                return (
+                  <div className="flex justify-start">
+                    <span className="bg-[#f2f5f0] text-[#719c44] px-3 py-1 rounded-full font-bold text-sm border border-[#c0c6b6]">
+                      $
+                      {Number(value).toLocaleString("es-MX", {
+                        minimumFractionDigits: 2,
+                      })}
+                    </span>
+                  </div>
+                );
+              if (key === "id")
+                return (
+                  <div className="flex justify-start">
+                    <button
+                      onClick={() => {
+                        setSelectedDonativo(row);
+                        setIsViewModalOpen(true);
+                      }}
+                      className="cursor-pointer flex items-center gap-2 text-[#817e7e] hover:text-[#719c44] hover:bg-[#f2f5f0] px-3 py-1.5 rounded-lg transition-all transform hover:scale-105 font-medium text-sm"
+                    >
+                      <Eye size={18} /> Ver Detalles
                     </button>
-                </div>
-              );
+                  </div>
+                );
               return <div className="text-left">{value}</div>;
             }}
           />
@@ -342,307 +512,634 @@ export const DonativosTable = ({ userRole }: DonativosTableProps) => {
       )}
 
       {/* --- MODAL DE REGISTRO --- */}
-      {/* PROTECCIÓN ADICIONAL: Solo renderizar si NO es lector */}
       {!isReadOnly && (
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Entrada" size="extraLarge" variant="japem" icon={<HandHeart />}>
-            <form onSubmit={handleSave} className="space-y-8 p-1">
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title="Registrar Entrada"
+          size="extraLarge"
+          variant="japem"
+          icon={<HandHeart />}
+        >
+          <form onSubmit={handleSave} className="space-y-8 p-1">
             <div className="bg-[#f2f5f0] p-6 rounded-2xl border border-[#c0c6b6]">
-                <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2"><User size={18} /> Información del Donante</h3>
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              <h3 className="text-sm font-extrabold text-[#719c44] uppercase tracking-wide flex items-center gap-2">
+                <User size={18} /> Información del Donante
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                 <div className="md:col-span-5 space-y-1.5">
-                    <label className="text-sm font-bold text-[#353131]">Seleccionar Donante *</label>
-                    <select required className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none bg-white text-[#353131]" value={formData.donante_id} onChange={(e) => setFormData({ ...formData, donante_id: Number(e.target.value) })}>
+                  <label className="text-sm font-bold text-[#353131]">
+                    Seleccionar Donante *
+                  </label>
+                  <select
+                    required
+                    className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none bg-white text-[#353131]"
+                    value={formData.donante_id}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        donante_id: Number(e.target.value),
+                      })
+                    }
+                  >
                     <option value={0}>-- Seleccionar Donante --</option>
-                    {donantes.map((d) => <option key={d.id} value={d.id}>{d.razon_social}</option>)}
-                    </select>
+                    {donantes.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.razon_social}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div className="md:col-span-3 space-y-1.5">
-                    <label className="text-sm font-bold text-[#353131]">Fecha Recepción *</label>
-                    <input type="date" required className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]" value={formData.fecha_donativo} onChange={(e) => setFormData({ ...formData, fecha_donativo: e.target.value })} />
+                  <label className="text-sm font-bold text-[#353131]">
+                    Fecha Recepción *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]"
+                    value={formData.fecha_donativo}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        fecha_donativo: e.target.value,
+                      })
+                    }
+                  />
                 </div>
                 <div className="md:col-span-4 space-y-1.5">
-                    <label className="text-sm font-bold text-[#353131]">Notas / Observaciones</label>
-                    <input type="text" className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]" placeholder="Ej. Entregado por chofer..." value={formData.observaciones} onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })} />
+                  <label className="text-sm font-bold text-[#353131]">
+                    Notas / Observaciones
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-[#c0c6b6] rounded-xl focus:ring-4 focus:ring-[#719c44]/20 focus:border-[#719c44] outline-none text-[#353131]"
+                    placeholder="Ej. Entregado por chofer..."
+                    value={formData.observaciones}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        observaciones: e.target.value,
+                      })
+                    }
+                  />
                 </div>
-                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                <h3 className="text-sm font-extrabold text-[#817e7e] uppercase tracking-wide flex items-center gap-2"><Package size={18} /> Inventario a Ingresar</h3>
-                <button type="button" onClick={addProductoRow} className="cursor-pointer flex items-center gap-2 bg-[#f2f5f0] hover:bg-[#c0c6b6] text-[#353131] px-5 py-2 rounded-xl transition-all font-bold text-sm hover:scale-105 active:scale-95 border border-[#c0c6b6]"><Plus size={16} /> Agregar Fila</button>
-                </div>
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-extrabold text-[#817e7e] uppercase tracking-wide flex items-center gap-2">
+                  <Package size={18} /> Inventario a Ingresar
+                </h3>
+                <button
+                  type="button"
+                  onClick={addProductoRow}
+                  className="cursor-pointer flex items-center gap-2 bg-[#f2f5f0] hover:bg-[#c0c6b6] text-[#353131] px-5 py-2 rounded-xl transition-all font-bold text-sm hover:scale-105 active:scale-95 border border-[#c0c6b6]"
+                >
+                  <Plus size={16} /> Agregar Fila
+                </button>
+              </div>
 
-                {formData.detalles.map((detalle, index) => {
-                const showExpiry = needsExpiration(detalle.categoria_producto || "");
-                const productosFiltrados = catalogoReferencias.filter(p => 
-                    !detalle.categoria_producto || detalle.categoria_producto === "0" || p.categoria === detalle.categoria_producto
+              {formData.detalles.map((detalle, index) => {
+                const showExpiry = needsExpiration(
+                  detalle.categoria_producto || "",
+                );
+                const productosFiltrados = catalogoReferencias.filter(
+                  (p) =>
+                    !detalle.categoria_producto ||
+                    detalle.categoria_producto === "0" ||
+                    p.categoria === detalle.categoria_producto,
                 );
 
                 return (
-                    <div key={index} className="bg-white p-5 rounded-2xl border border-[#c0c6b6] shadow-sm relative group animate-in slide-in-from-bottom-2 mb-4">
-                    <button type="button" onClick={() => removeProductoRow(index)} className="cursor-pointer absolute top-4 right-4 text-[#c0c6b6] hover:text-red-500 transition-colors"><Trash2 size={20} /></button>
+                  <div
+                    key={index}
+                    className="bg-white p-5 rounded-2xl border border-[#c0c6b6] shadow-sm relative group animate-in slide-in-from-bottom-2 mb-4"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => removeProductoRow(index)}
+                      className="cursor-pointer absolute top-4 right-4 text-[#c0c6b6] hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={20} />
+                    </button>
 
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-x-6 gap-y-4 items-start">
-                        
-                        <div className="md:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Tag size={12} /> Categoría</label>
-                        <select className="w-full p-2.5 bg-[#f9fafb] border border-[#c0c6b6] rounded-lg text-sm uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131]" 
-                            value={detalle.categoria_producto} onChange={(e) => handleProductChange(index, "categoria_producto", e.target.value)}>
-                            <option value={0}>-- Seleccionar --</option>
-                            <option value="Alimentos">Alimentos</option>
-                            <option value="Medicamentos">Medicamentos</option>
-                            <option value="Ropa">Ropa</option>
-                            <option value="Juguetes">Juguetes</option>
-                            <option value="Mantenimiento">Mantenimiento</option>
-                            <option value="Otros">Otros</option>
+                      <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1">
+                          <Tag size={12} /> Categoría
+                        </label>
+                        <select
+                          className="w-full p-2.5 bg-[#f9fafb] border border-[#c0c6b6] rounded-lg text-sm uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131]"
+                          value={detalle.categoria_producto}
+                          onChange={(e) =>
+                            handleProductChange(
+                              index,
+                              "categoria_producto",
+                              e.target.value,
+                            )
+                          }
+                        >
+                          <option value={0}>-- Seleccionar --</option>
+                          <option value="Alimentos">Alimentos</option>
+                          <option value="Medicamentos">Medicamentos</option>
+                          <option value="Ropa">Ropa</option>
+                          <option value="Juguetes">Juguetes</option>
+                          <option value="Mantenimiento">Mantenimiento</option>
+                          <option value="Otros">Otros</option>
                         </select>
-                        </div>
+                      </div>
 
-                        <div className="md:col-span-6 space-y-1">
-                        <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1"><Box size={12} /> Producto Específico</label>
+                      <div className="md:col-span-6 space-y-1">
+                        <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1">
+                          <Box size={12} /> Producto Específico
+                        </label>
                         <div className="flex gap-2">
-                            {!detalle.isManual ? (
-                                <select 
-                                    className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none"
-                                    value={detalle.nombre_producto} 
-                                    onChange={(e) => handleProductChange(index, "nombre_producto", e.target.value)}
-                                >
-                                    <option value="">-- Buscar Producto --</option>
-                                    {productosFiltrados.map((prod, i) => (
-                                        <option key={i} value={prod.nombre}>{prod.nombre}</option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <input 
-                                    type="text" 
-                                    placeholder="Nuevo producto..." 
-                                    className="w-full p-2.5 border-2 border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none animate-fade-in" 
-                                    value={detalle.nombre_producto} 
-                                    onChange={(e) => handleProductChange(index, "nombre_producto", e.target.value)} 
-                                    autoFocus
-                                />
-                            )}
-                            <button 
-                                type="button"
-                                onClick={() => toggleInputMode(index)}
-                                className={`cursor-pointer p-2.5 rounded-lg border transition-all ${detalle.isManual ? 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300' : 'bg-[#719c44] text-white hover:bg-[#5e8239] border-[#719c44]'}`}
-                                title={detalle.isManual ? "Ver lista existente" : "Agregar nuevo producto"}
+                          {!detalle.isManual ? (
+                            <select
+                              className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none"
+                              value={detalle.nombre_producto}
+                              onChange={(e) =>
+                                handleProductChange(
+                                  index,
+                                  "nombre_producto",
+                                  e.target.value,
+                                )
+                              }
                             >
-                                {detalle.isManual ? <List size={18} /> : <Plus size={18} />}
-                            </button>
+                              <option value="">-- Buscar Producto --</option>
+                              {productosFiltrados.map((prod, i) => (
+                                <option key={i} value={prod.nombre}>
+                                  {prod.nombre}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              placeholder="Nuevo producto..."
+                              className="w-full p-2.5 border-2 border-[#c0c6b6] rounded-lg text-sm font-bold text-[#353131] uppercase focus:border-[#719c44] outline-none animate-fade-in"
+                              value={detalle.nombre_producto}
+                              onChange={(e) =>
+                                handleProductChange(
+                                  index,
+                                  "nombre_producto",
+                                  e.target.value,
+                                )
+                              }
+                              autoFocus
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => toggleInputMode(index)}
+                            className={`cursor-pointer p-2.5 rounded-lg border transition-all ${detalle.isManual ? "bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-300" : "bg-[#719c44] text-white hover:bg-[#5e8239] border-[#719c44]"}`}
+                            title={
+                              detalle.isManual
+                                ? "Ver lista existente"
+                                : "Agregar nuevo producto"
+                            }
+                          >
+                            {detalle.isManual ? (
+                              <List size={18} />
+                            ) : (
+                              <Plus size={18} />
+                            )}
+                          </button>
                         </div>
-                        </div>
+                      </div>
 
-                        <div className="md:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Barcode size={12} /> Clave SAT</label>
-                        <input type="text" placeholder="Ej. 10101502" 
-                            className={`w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm font-mono uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131] ${!detalle.isManual ? 'bg-[#f9fafb] text-gray-500' : 'bg-white'}`}
-                            value={detalle.clave_sat || ""} onChange={(e) => handleProductChange(index, "clave_sat", e.target.value)} 
-                            readOnly={!detalle.isManual} 
+                      <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1">
+                          <Barcode size={12} /> Clave SAT
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ej. 10101502"
+                          className={`w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm font-mono uppercase focus:bg-white focus:ring-2 focus:ring-[#719c44] outline-none text-[#353131] ${!detalle.isManual ? "bg-[#f9fafb] text-gray-500" : "bg-white"}`}
+                          value={detalle.clave_sat || ""}
+                          onChange={(e) =>
+                            handleProductChange(
+                              index,
+                              "clave_sat",
+                              e.target.value,
+                            )
+                          }
+                          readOnly={!detalle.isManual}
                         />
-                        </div>
+                      </div>
 
-                        <div className="md:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><AlertTriangle size={12} /> Estado</label>
-                        <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm focus:ring-2 focus:ring-[#719c44] outline-none bg-white text-[#353131]"
-                            value={detalle.estado || "Nuevo"} onChange={(e) => handleProductChange(index, "estado", e.target.value)}>
-                            <option value="Nuevo">Nuevo</option>
-                            <option value="Buen Estado">Buen Estado</option>
+                      <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1">
+                          <AlertTriangle size={12} /> Estado
+                        </label>
+                        <select
+                          className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm focus:ring-2 focus:ring-[#719c44] outline-none bg-white text-[#353131]"
+                          value={detalle.estado || "Nuevo"}
+                          onChange={(e) =>
+                            handleProductChange(index, "estado", e.target.value)
+                          }
+                        >
+                          <option value="Nuevo">Nuevo</option>
+                          <option value="Buen Estado">Buen Estado</option>
                         </select>
-                        </div>
+                      </div>
 
-                        <div className="md:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Layers size={12} /> Modalidad</label>
-                        <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]" value={detalle.modalidad || ""} onChange={(e) => handleProductChange(index, "modalidad", e.target.value)}>
-                            <option value={0}>-- Seleccionar --</option>
-                            <option value="Redondeo directo IAP">Redondeo directo IAP</option>
-                            <option value="Servicio directo Japem">Servicio directo Japem</option>
-                            <option value="Recurso directo IAP">Recurso directo IAP</option>
-                            <option value="Especie directo IAP">Especie directo IAP</option>
-                            <option value="Talento directo IAP">Talento directo IAP</option>  
-                            <option value="Redondeo vía Japem">Redondeo vía Japem</option>  
-                            <option value="Servicio vía Japem">Servicio vía Japem</option>  
-                            <option value="Recurso vía Japem">Recurso vía Japem</option>  
-                            <option value="Especie vía Japem">Especie vía Japem</option>  
-                            <option value="Talento vía Japem">Talento vía Japem</option>  
+                      <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1">
+                          <Layers size={12} /> Modalidad
+                        </label>
+                        <select
+                          className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]"
+                          value={detalle.modalidad || ""}
+                          onChange={(e) =>
+                            handleProductChange(
+                              index,
+                              "modalidad",
+                              e.target.value,
+                            )
+                          }
+                        >
+                          <option value={0}>-- Seleccionar --</option>
+                          <option value="Redondeo directo IAP">
+                            Redondeo directo IAP
+                          </option>
+                          <option value="Servicio directo Japem">
+                            Servicio directo Japem
+                          </option>
+                          <option value="Recurso directo IAP">
+                            Recurso directo IAP
+                          </option>
+                          <option value="Especie directo IAP">
+                            Especie directo IAP
+                          </option>
+                          <option value="Talento directo IAP">
+                            Talento directo IAP
+                          </option>
+                          <option value="Redondeo vía Japem">
+                            Redondeo vía Japem
+                          </option>
+                          <option value="Servicio vía Japem">
+                            Servicio vía Japem
+                          </option>
+                          <option value="Recurso vía Japem">
+                            Recurso vía Japem
+                          </option>
+                          <option value="Especie vía Japem">
+                            Especie vía Japem
+                          </option>
+                          <option value="Talento vía Japem">
+                            Talento vía Japem
+                          </option>
                         </select>
-                        </div>
+                      </div>
 
-                        <div className="md:col-span-3 space-y-1">
-                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1"><Ruler size={12} /> Unidad de Medida</label>
-                        <select className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]" value={detalle.clave_unidad || ""} onChange={(e) => handleProductChange(index, "clave_unidad", e.target.value)}>
-                            <option value="PZA">PZA</option>
-                            <option value="KG">KG</option>
-                            <option value="CAJA">CAJA</option>
-                            <option value="BOLSA">BOLSA</option>
-                            <option value="PAQUETE">PAQUETE</option>
-                            <option value="KIT">KIT</option>
-                            <option value="TARIMA">TARIMA</option>
-                            <option value="PERSONAS">PERSONAS</option>
-                            <option value="PROYECTO">PROYECTO</option>
-                            <option value="LITRO">LITRO</option>
-                            <option value="BIDÓN">BIDÓN</option>
-                            <option value="ROLLO">ROLLO</option>
-                            <option value="ANIMAL">ANIMAL</option>
-                            <option value="PAR">PAR</option>
+                      <div className="md:col-span-3 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase flex items-center gap-1">
+                          <Ruler size={12} /> Unidad de Medida
+                        </label>
+                        <select
+                          className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm bg-white text-[#353131]"
+                          value={detalle.clave_unidad || ""}
+                          onChange={(e) =>
+                            handleProductChange(
+                              index,
+                              "clave_unidad",
+                              e.target.value,
+                            )
+                          }
+                        >
+                          <option value="PZA">PZA</option>
+                          <option value="KG">KG</option>
+                          <option value="CAJA">CAJA</option>
+                          <option value="BOLSA">BOLSA</option>
+                          <option value="PAQUETE">PAQUETE</option>
+                          <option value="KIT">KIT</option>
+                          <option value="TARIMA">TARIMA</option>
+                          <option value="PERSONAS">PERSONAS</option>
+                          <option value="PROYECTO">PROYECTO</option>
+                          <option value="LITRO">LITRO</option>
+                          <option value="BIDÓN">BIDÓN</option>
+                          <option value="ROLLO">ROLLO</option>
+                          <option value="ANIMAL">ANIMAL</option>
+                          <option value="PAR">PAR</option>
                         </select>
-                        </div>
+                      </div>
 
-                        {showExpiry ? (
+                      {showExpiry ? (
                         <div className="md:col-span-3 space-y-1 animate-fade-in">
-                            <label className="text-xs font-bold text-red-500 uppercase flex items-center gap-1"><Clock size={12} /> Caducidad *</label>
-                            <input type="date" className="w-full p-2.5 border border-red-200 bg-red-50 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-[#353131]" value={detalle.fecha_caducidad || ""} onChange={(e) => handleProductChange(index, "fecha_caducidad", e.target.value)} />
+                          <label className="text-xs font-bold text-red-500 uppercase flex items-center gap-1">
+                            <Clock size={12} /> Caducidad *
+                          </label>
+                          <input
+                            type="date"
+                            className="w-full p-2.5 border border-red-200 bg-red-50 rounded-lg text-sm focus:ring-2 focus:ring-red-500 text-[#353131]"
+                            value={detalle.fecha_caducidad || ""}
+                            onChange={(e) =>
+                              handleProductChange(
+                                index,
+                                "fecha_caducidad",
+                                e.target.value,
+                              )
+                            }
+                          />
                         </div>
-                        ) : <div className="hidden md:block md:col-span-3"></div>}
+                      ) : (
+                        <div className="hidden md:block md:col-span-3"></div>
+                      )}
 
-                        <div className="md:col-span-2 space-y-1">
-                        <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1"><Hash size={12} /> Cantidad</label>
-                        <input 
-                            type="number" 
-                            min="1" 
-                            className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-center text-[#353131]" 
-                            value={detalle.cantidad === 0 ? "" : detalle.cantidad} 
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                handleProductChange(index, "cantidad", val === "" ? "" : Number(val));
-                            }} 
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="text-xs font-bold text-[#719c44] uppercase flex items-center gap-1">
+                          <Hash size={12} /> Cantidad
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-center text-[#353131]"
+                          value={detalle.cantidad === 0 ? "" : detalle.cantidad}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleProductChange(
+                              index,
+                              "cantidad",
+                              val === "" ? "" : Number(val),
+                            );
+                          }}
                         />
-                        </div>
+                      </div>
 
-                        <div className="md:col-span-2 space-y-1">
-                        <label className="text-xs font-bold text-[#817e7e] uppercase">P. Unitario</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm text-[#353131]" 
-                            value={detalle.precio_unitario_deducible === 0 ? "" : detalle.precio_unitario_deducible} 
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                handleProductChange(index, "precio_unitario_deducible", val === "" ? "" : Number(val));
-                            }} 
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="text-xs font-bold text-[#817e7e] uppercase">
+                          P. Unitario
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-2.5 border border-[#c0c6b6] rounded-lg text-sm text-[#353131]"
+                          value={
+                            detalle.precio_unitario_deducible === 0
+                              ? ""
+                              : detalle.precio_unitario_deducible
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleProductChange(
+                              index,
+                              "precio_unitario_deducible",
+                              val === "" ? "" : Number(val),
+                            );
+                          }}
                         />
-                        </div>
+                      </div>
 
-                        {/* --- PRECIO VENTA (REGISTRO) --- */}
-                        <div className="md:col-span-2 space-y-1">
-                        <label className="text-xs font-bold text-[#719c44] uppercase">P. Venta</label>
-                        <input 
-                            type="number" 
-                            step="0.01" 
-                            className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-[#719c44] outline-none" 
-                            value={detalle.precio_venta_unitario === 0 ? "" : detalle.precio_venta_unitario} 
-                            onChange={(e) => {
-                                const val = e.target.value;
-                                handleProductChange(index, "precio_venta_unitario", val === "" ? "" : Number(val));
-                            }} 
+                      {/* --- PRECIO VENTA (REGISTRO) --- */}
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="text-xs font-bold text-[#719c44] uppercase">
+                          P. Venta
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full p-2.5 bg-[#f2f5f0] border border-[#c0c6b6] rounded-lg text-sm font-bold text-[#719c44] outline-none"
+                          value={
+                            detalle.precio_venta_unitario === 0
+                              ? ""
+                              : detalle.precio_venta_unitario
+                          }
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleProductChange(
+                              index,
+                              "precio_venta_unitario",
+                              val === "" ? "" : Number(val),
+                            );
+                          }}
                         />
-                        </div>
-
+                      </div>
                     </div>
-                    </div>
+                  </div>
                 );
-                })}
+              })}
             </div>
 
             <div className="sticky bottom-0 bg-white pt-4 border-t border-[#c0c6b6]/30 flex justify-end gap-3 z-20">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="cursor-pointer px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors">Cancelar</button>
-                <button type="submit" className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-transform transform active:scale-95 flex items-center gap-2"><CheckCircle size={20} /> Guardar Entrada</button>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="cursor-pointer px-6 py-3 text-[#817e7e] bg-[#f9fafb] hover:bg-[#f2f5f0] rounded-xl font-bold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="cursor-pointer px-8 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-lg shadow-[#719c44]/30 transition-transform transform active:scale-95 flex items-center gap-2"
+              >
+                <CheckCircle size={20} /> Guardar Entrada
+              </button>
             </div>
-            </form>
+          </form>
         </Modal>
       )}
 
-      {/* --- MODAL DETALLES EDITABLE --- */}
-      <Modal isOpen={isViewModalOpen} onClose={() => setIsViewModalOpen(false)} title="Detalle y Ajuste de Precios" size="extraLarge" variant="japem">
-         {selectedDonativo && (
+      {/* --- MODAL DETALLES EDITABLE Y DEVOLUCIONES --- */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Detalle y Ajuste de Precios"
+        size="extraLarge"
+        variant="japem"
+      >
+        {selectedDonativo && (
           <div className="space-y-6 p-1">
             <div className="bg-[#f2f5f0] p-4 rounded-xl border border-[#c0c6b6] grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-               <div><p className="text-[#817e7e] font-bold uppercase">Donante</p><p className="text-[#353131] font-bold text-sm">{selectedDonativo.donante?.razon_social}</p></div>
-               <div><p className="text-[#817e7e] font-bold uppercase">Fecha</p><p className="text-[#719c44] font-bold">{new Date(selectedDonativo.fecha_donativo).toLocaleDateString("es-MX", {dateStyle: 'long'})}</p></div>
-               <div><p className="text-[#817e7e] font-bold uppercase">Total Deducible</p><p className="text-[#353131] font-bold">${Number(selectedDonativo.monto_total_deducible).toLocaleString()}</p></div>
-               <div><p className="text-[#817e7e] font-bold uppercase">Observaciones</p><p className="text-[#817e7e] italic">{selectedDonativo.observaciones || "Sin observaciones"}</p></div>
+              <div>
+                <p className="text-[#817e7e] font-bold uppercase">Donante</p>
+                <p className="text-[#353131] font-bold text-sm">
+                  {selectedDonativo.donante?.razon_social}
+                </p>
+              </div>
+              <div>
+                <p className="text-[#817e7e] font-bold uppercase">Fecha</p>
+                <p className="text-[#719c44] font-bold">
+                  {new Date(selectedDonativo.fecha_donativo).toLocaleDateString(
+                    "es-MX",
+                    { dateStyle: "long" },
+                  )}
+                </p>
+              </div>
+              <div>
+                <p className="text-[#817e7e] font-bold uppercase">
+                  Total Deducible
+                </p>
+                <p className="text-[#353131] font-bold">
+                  $
+                  {Number(
+                    selectedDonativo.monto_total_deducible,
+                  ).toLocaleString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-[#817e7e] font-bold uppercase">
+                  Observaciones
+                </p>
+                <p className="text-[#817e7e] italic">
+                  {selectedDonativo.observaciones || "Sin observaciones"}
+                </p>
+              </div>
             </div>
-            
+
             <div className="border border-[#c0c6b6]/50 rounded-xl overflow-hidden overflow-x-auto shadow-sm">
-                <table className="w-full text-sm text-left">
-                    <thead className="bg-[#f9fafb] text-[#817e7e] font-bold uppercase text-[11px]">
-                        <tr>
-                            <th className="px-3 py-3 min-w-[150px]">Producto</th>
-                            <th className="px-2 py-3 text-center">Cant.</th>
-                            <th className="px-3 py-3 text-right bg-gray-50 border-l">P. Deducible</th>
-                            <th className="px-3 py-3 text-right bg-gray-50">Total Ded.</th>
-                            
-                            {/* COLUMNA EDITABLE CONDICIONADA */}
-                            <th className="px-2 py-3 text-center text-[#719c44] bg-[#f2f5f0] border-l border-[#c0c6b6]/30 w-[130px]">
-                                P. Venta {isReadOnly ? '(Solo Lectura)' : '(Editable)'}
-                            </th>
-                            <th className="px-3 py-3 text-right text-[#719c44] bg-[#f2f5f0]">Total Venta</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#f2f5f0]">
-                        {selectedDonativo.inventarios?.map((det:any, idx:number) => (
-                            <tr key={idx} className="hover:bg-[#f9fafb] transition-colors">
-                                <td className="px-3 py-2 font-medium text-[#353131]">
-                                    {det.nombre_producto}
-                                    <div className="text-[10px] text-[#817e7e]">{det.clave_unidad}</div>
-                                </td>
-                                <td className="px-2 py-2 text-center text-[#353131] font-bold bg-gray-50/50">
-                                    {det.cantidad}
-                                </td>
-                                <td className="px-3 py-2 text-right text-[#817e7e] border-l border-gray-100">
-                                    ${Number(det.precio_unitario_deducible).toLocaleString('es-MX', {minimumFractionDigits: 2})}
-                                </td>
-                                <td className="px-3 py-2 text-right font-medium text-[#817e7e]">
-                                    ${(Number(det.cantidad) * Number(det.precio_unitario_deducible)).toLocaleString('es-MX', {minimumFractionDigits: 2})}
-                                </td>
+              <table className="w-full text-sm text-left">
+                <thead className="bg-[#f9fafb] text-[#817e7e] font-bold uppercase text-[11px]">
+                  <tr>
+                    <th className="px-3 py-3 min-w-[150px]">Producto</th>
+                    <th className="px-2 py-3 text-center">Cant.</th>
+                    <th className="px-3 py-3 text-right bg-gray-50 border-l">
+                      P. Deducible
+                    </th>
+                    <th className="px-3 py-3 text-right bg-gray-50">
+                      Total Ded.
+                    </th>
 
-                                {/* INPUT EDITABLE: CONDICIONADO POR isReadOnly */}
-                                <td className="px-2 py-2 border-l border-[#c0c6b6]/30 bg-[#f2f5f0]/30">
-                                    <div className="relative">
-                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#719c44] font-bold">$</span>
-                                        <input 
-                                            type="number"
-                                            min="0"
-                                            step="0.01"
-                                            // BLOQUEO SI ES LECTOR
-                                            readOnly={isReadOnly}
-                                            disabled={isReadOnly}
-                                            className={`w-full pl-5 pr-2 py-1.5 border rounded-lg text-right font-bold outline-none text-sm 
-                                                ${isReadOnly 
-                                                    ? 'bg-transparent border-transparent text-[#817e7e]' 
-                                                    : 'bg-white border-[#c0c6b6] text-[#353131] focus:ring-2 focus:ring-[#719c44]'
+                    {/* COLUMNA EDITABLE CONDICIONADA */}
+                    <th className="px-2 py-3 text-center text-[#719c44] bg-[#f2f5f0] border-l border-[#c0c6b6]/30 w-[130px]">
+                      P. Venta {isReadOnly ? "(Solo Lectura)" : "(Editable)"}
+                    </th>
+                    <th className="px-3 py-3 text-right text-[#719c44] bg-[#f2f5f0]">
+                      Total Venta
+                    </th>
+
+                    {/* NUEVA COLUMNA DE DEVOLUCIÓN */}
+                    {!isReadOnly && (
+                      <th className="px-2 py-3 text-center text-red-500 bg-red-50/50 border-l border-[#c0c6b6]/30">
+                        Devolver
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#f2f5f0]">
+                  {selectedDonativo.inventarios?.map(
+                    (det: any, idx: number) => (
+                      <tr
+                        key={idx}
+                        className="hover:bg-[#f9fafb] transition-colors"
+                      >
+                        <td className="px-3 py-2 font-medium text-[#353131]">
+                          <span
+                            className={
+                              det.cantidad <= 0
+                                ? "line-through text-gray-400"
+                                : ""
+                            }
+                          >
+                            {det.nombre_producto}
+                          </span>
+                          <div className="text-[10px] text-[#817e7e]">
+                            {det.clave_unidad}
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-center text-[#353131] font-bold bg-gray-50/50">
+                          {det.cantidad <= 0 ? (
+                            <span className="text-red-500">0</span>
+                          ) : (
+                            det.cantidad
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right text-[#817e7e] border-l border-gray-100">
+                          $
+                          {Number(det.precio_unitario_deducible).toLocaleString(
+                            "es-MX",
+                            { minimumFractionDigits: 2 },
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium text-[#817e7e]">
+                          $
+                          {(
+                            Number(det.cantidad) *
+                            Number(det.precio_unitario_deducible)
+                          ).toLocaleString("es-MX", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+
+                        {/* INPUT EDITABLE: CONDICIONADO POR isReadOnly */}
+                        <td className="px-2 py-2 border-l border-[#c0c6b6]/30 bg-[#f2f5f0]/30">
+                          <div className="relative">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[#719c44] font-bold">
+                              $
+                            </span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              readOnly={isReadOnly || det.cantidad <= 0}
+                              disabled={isReadOnly || det.cantidad <= 0}
+                              className={`w-full pl-5 pr-2 py-1.5 border rounded-lg text-right font-bold outline-none text-sm 
+                                                ${
+                                                  isReadOnly ||
+                                                  det.cantidad <= 0
+                                                    ? "bg-transparent border-transparent text-[#817e7e]"
+                                                    : "bg-white border-[#c0c6b6] text-[#353131] focus:ring-2 focus:ring-[#719c44]"
                                                 }`}
-                                            value={det.precio_venta_unitario ?? 0}
-                                            onChange={(e) => handlePriceChange(idx, e.target.value)}
-                                            // Solo selecciona si NO es lector
-                                            onFocus={(e) => !isReadOnly && e.target.select()}
-                                        />
-                                    </div>
-                                </td>
+                              value={det.precio_venta_unitario ?? 0}
+                              onChange={(e) =>
+                                handlePriceChange(idx, e.target.value)
+                              }
+                              onFocus={(e) => !isReadOnly && e.target.select()}
+                            />
+                          </div>
+                        </td>
 
-                                <td className="px-3 py-2 text-right font-bold text-[#719c44] bg-[#f2f5f0]/30">
-                                    ${Number(det.precio_venta_total ?? (det.cantidad * (det.precio_venta_unitario ?? 0))).toLocaleString('es-MX', {minimumFractionDigits: 2})}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        <td className="px-3 py-2 text-right font-bold text-[#719c44] bg-[#f2f5f0]/30">
+                          $
+                          {Number(
+                            det.precio_venta_total ??
+                              det.cantidad * (det.precio_venta_unitario ?? 0),
+                          ).toLocaleString("es-MX", {
+                            minimumFractionDigits: 2,
+                          })}
+                        </td>
+
+                        {/* BOTÓN DE DEVOLUCIÓN DE PRODUCTO DAÑADO */}
+                        {!isReadOnly && (
+                          <td className="px-2 py-2 text-center border-l border-[#c0c6b6]/30 bg-red-50/10">
+                            <button
+                              onClick={() => handleDevolverItem(det)}
+                              disabled={det.cantidad <= 0}
+                              className={`p-1.5 rounded-md transition-all ${det.cantidad <= 0 ? "text-gray-300 cursor-not-allowed" : "text-red-400 hover:text-red-600 hover:bg-red-50 cursor-pointer"}`}
+                              title="Regresar o mermar producto dañado"
+                            >
+                              <Undo2 size={18} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ),
+                  )}
+                </tbody>
+              </table>
             </div>
 
             <div className="flex gap-3 pt-2 border-t border-gray-100">
-                <button onClick={() => setIsViewModalOpen(false)} className="cursor-pointer flex-1 py-3 bg-[#f9fafb] hover:bg-gray-100 text-[#817e7e] font-bold rounded-xl transition border border-[#c0c6b6]/30">
-                    {isReadOnly ? 'Cerrar' : 'Cancelar'}
+              <button
+                onClick={() => setIsViewModalOpen(false)}
+                className="cursor-pointer flex-1 py-3 bg-[#f9fafb] hover:bg-gray-100 text-[#817e7e] font-bold rounded-xl transition border border-[#c0c6b6]/30"
+              >
+                {isReadOnly ? "Cerrar" : "Cancelar"}
+              </button>
+              {/* BOTÓN GUARDAR PRECIOS: SOLO SI NO ES LECTOR */}
+              {!isReadOnly && (
+                <button
+                  onClick={handleUpdatePrices}
+                  className="cursor-pointer flex-1 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-md shadow-[#719c44]/20 transition transform active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <Save size={18} /> Guardar Precios
                 </button>
-                {/* BOTÓN GUARDAR: SOLO SI NO ES LECTOR */}
-                {!isReadOnly && (
-                    <button onClick={handleUpdatePrices} className="cursor-pointer flex-1 py-3 bg-[#719c44] hover:bg-[#5e8239] text-white font-bold rounded-xl shadow-md shadow-[#719c44]/20 transition transform active:scale-95 flex items-center justify-center gap-2">
-                        <Save size={18} /> Guardar Precios
-                    </button>
-                )}
+              )}
             </div>
           </div>
-         )}
+        )}
       </Modal>
     </div>
   );

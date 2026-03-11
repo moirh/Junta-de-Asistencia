@@ -59,3 +59,16 @@ export const updateInventarioPrecios = async (items: any[]) => {
     throw error; // Re-lanzamos el error para que el componente lo capture
   }
 };
+
+// Agrega esto en tu archivo de servicios
+export const devolverItemInventario = async (inventarioId: number, cantidadADevolver: number) => {
+    // Reemplaza esto con tu URL real o usa tu variable de entorno
+    const API_URL = import.meta.env.VITE_API_URL || "http://192.168.1.198:8000/api";
+    const token = localStorage.getItem('token');
+    
+    const response = await axios.post(`${API_URL}/inventario/devolver/${inventarioId}`, 
+        { cantidad: cantidadADevolver },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+    );
+    return response.data;
+};

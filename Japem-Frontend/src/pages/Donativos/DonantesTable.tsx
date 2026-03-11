@@ -31,7 +31,10 @@ interface DonantesTableProps {
 // 2. RECIBIMOS EL ROL
 export default function DonantesTable({ userRole }: DonantesTableProps) {
   // 3. DEFINIMOS SI ES SOLO LECTURA
-  const isReadOnly = userRole === "lector";
+  // Lógica de roles: Admin y Donativos pueden editar. Asistencial solo lee.
+  const role = (userRole || "").toLowerCase();
+  const allowedRoles = ["admin", "superadmin", "editor", "donativos"];
+  const isReadOnly = !allowedRoles.includes(role);
 
   const [donantes, setDonantes] = useState<Donante[]>([]);
   const [loading, setLoading] = useState(false);
